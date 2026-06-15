@@ -1,10 +1,18 @@
 /* ============================================================
    PORTAL SMS — CSFS  |  app.js
-   Lógica de la aplicación: navegación, API Atalaya, formularios
+   Auth, formularios, subida de fotos, mis reportes, chatbot
    ============================================================ */
 
-const API_BASE = 'https://atalaya-production-f377.up.railway.app/api';
-let currentOrgId = null;
+const API_BASE  = 'https://atalaya-production-f377.up.railway.app/api';
+// Cambiar CHAT_BASE a la URL del servicio chatbot en producción
+const CHAT_BASE = window.ATALAYA_CHAT_URL || 'http://localhost:4000';
+
+/* ── ESTADO ──────────────────────────────────────────────── */
+let currentToken  = null;
+let currentUser   = null;   // { email, nombre, rol, organizacionId }
+let currentOrgId  = null;
+let selectedPhotos = { asr: [], oma: [] };
+let chatState = { conversacionId: null, open: false, initialized: false };
 
 /* ── TEMA (dark / light) ─────────────────────────────────── */
 (function initTheme() {
@@ -30,17 +38,150 @@ let currentOrgId = null;
   }
 })();
 
+/* ── AUTH ────────────────────────────────────────────────── */
+function loadSavedAuth() {
+  try {
+    const saved = localStorage.getItem('portal_sms_auth');
+    if (!saved) return false;
+    const data = JSON.parse(saved);
+    if (!data.token || !data.user) return false;
+    currentToken = data.token;
+    currentUser  = data.user;
+    currentOrgId = data.user.organizacionId;
+    return true;
+  } catch { return false; }
+}
+
+function saveAuth(token, user) {
+  currentToken  = token;
+  currentUser   = user;
+  currentOrgId  = user.organizacionId;
+  localStorage.setItem('portal_sms_auth', JSON.stringify({ token, user }));
+}
+
+function clearAuth() {
+  currentToken = null;
+  currentUser  = null;
+  currentOrgId = null;
+  localStorage.removeItem('portal_sms_auth');
+}
+
+function updateUserBar() {
+  const bar = document.getElementById('user-info-bar');
+  const nameEl = document.getElementById('user-display-name');
+  if (currentUser && bar) {
+    bar.style.display = 'flex';
+    if (nameEl) nameEl.textContent = currentUser.nombre;
+  } else if (bar) {
+    bar.style.display = 'none';
+  }
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errBox   = document.getElementById('login-error');
+  const errMsg   = document.getElementById('login-error-msg');
+
+  errBox.style.display = 'none';
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || `Error ${res.status}: credenciales incorrectas`);
+    }
+
+    const data = await res.json();
+    saveAuth(data.token, {
+      email:          data.email,
+      nombre:         data.nombre,
+      rol:            data.rol,
+      organizacionId: data.organizacionId,
+    });
+
+    updateUserBar();
+    showHome();
+    showChatWidget();
+  } catch (err) {
+    errMsg.textContent = err.message;
+    errBox.style.display = 'flex';
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function logout() {
+  clearAuth();
+  chatState = { conversacionId: null, open: false, initialized: false };
+  selectedPhotos = { asr: [], oma: [] };
+  hideChatWidget();
+  showSection('login');
+  updateUserBar();
+}
+
 /* ── NAVEGACIÓN ──────────────────────────────────────────── */
-function showHome() {
+function showSection(id) {
   document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('home').classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function showHome() {
+  if (!currentToken) { showSection('login'); return; }
+  showSection('home');
 }
 
 function showForm(type) {
-  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('form-' + type).classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!currentToken) { showSection('login'); return; }
+  resetForm(type);
+  showSection(`form-${type}`);
+}
+
+function showMisReportes() {
+  if (!currentToken) { showSection('login'); return; }
+  showSection('mis-reportes');
+  loadMisReportes();
+}
+
+function resetForm(type) {
+  const isASR = type === 'handling';
+  const formId      = isASR ? 'asr-form'      : 'rso-form';
+  const successId   = isASR ? 'asr-success'   : 'rso-success';
+  const submitBarId = isASR ? 'asr-submitbar' : 'rso-submitbar';
+  const photoType   = isASR ? 'asr'           : 'oma';   // photo grid prefix
+  const fechaId     = isASR ? 'asr-fecha'     : 'rso-fecha';
+
+  const form = document.getElementById(formId);
+  if (form) form.reset();
+
+  selectedPhotos[photoType] = [];
+  const grid = document.getElementById(`${photoType}-preview-grid`);
+  if (grid) grid.innerHTML = '';
+
+  const success = document.getElementById(successId);
+  if (success) success.classList.remove('show');
+  const bar = document.getElementById(submitBarId);
+  if (bar) bar.style.display = '';
+  const btn = form ? form.querySelector('.btn-submit') : null;
+  if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const fechaEl = document.getElementById(fechaId);
+  if (fechaEl) fechaEl.value = today;
 }
 
 /* ── CARGA INICIAL ───────────────────────────────────────── */
@@ -55,20 +196,13 @@ window.addEventListener('load', async () => {
     correctLevel: QRCode.CorrectLevel.H,
   });
 
-  /* Fecha de hoy en los formularios */
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('asr-fecha').value = today;
-  document.getElementById('rso-fecha').value = today;
-
-  /* Obtener organización de Atalaya */
-  try {
-    const res = await fetch(`${API_BASE}/auth/organizaciones`);
-    if (res.ok) {
-      const orgs = await res.json();
-      if (orgs.length > 0) currentOrgId = orgs[0].id;
-    }
-  } catch (e) {
-    console.warn('No se pudo conectar con Atalaya al cargar:', e);
+  /* Restaurar sesión guardada */
+  if (loadSavedAuth()) {
+    updateUserBar();
+    showChatWidget();
+    showHome();
+  } else {
+    showSection('login');
   }
 });
 
@@ -92,6 +226,13 @@ function collectForm(formId) {
     data[key] = data[key] ? `${data[key]} | ${value}` : value;
   });
   return data;
+}
+
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${currentToken}`,
+  };
 }
 
 /* ── BUILDERS DE TEXTO PARA API ──────────────────────────── */
@@ -178,14 +319,90 @@ ${d.terceros || '—'}
 Enviado desde el Portal SMS · CSFS`;
 }
 
+/* ── FOTOS ───────────────────────────────────────────────── */
+function onPhotoSelect(files, type) {
+  const MAX = 10;
+  const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!newFiles.length) return;
+
+  selectedPhotos[type] = [...selectedPhotos[type], ...newFiles].slice(0, MAX);
+  renderPhotoPreviews(type);
+
+  // Limpiar el input para permitir re-selección
+  const input = document.getElementById(`${type}-photo-input`);
+  if (input) input.value = '';
+}
+
+function renderPhotoPreviews(type) {
+  const grid = document.getElementById(`${type}-preview-grid`);
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  selectedPhotos[type].forEach((file, idx) => {
+    const url = URL.createObjectURL(file);
+    const item = document.createElement('div');
+    item.className = 'photo-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="Foto ${idx + 1}" onload="URL.revokeObjectURL(this.src)">
+      <button type="button" class="photo-remove-btn" onclick="removePhoto('${type}',${idx})" aria-label="Eliminar foto">
+        <i class="ph-bold ph-x"></i>
+      </button>
+      <div class="photo-name">${file.name.length > 18 ? file.name.slice(0,15)+'...' : file.name}</div>
+    `;
+    grid.appendChild(item);
+  });
+}
+
+function removePhoto(type, idx) {
+  selectedPhotos[type].splice(idx, 1);
+  renderPhotoPreviews(type);
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e, type) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const files = e.dataTransfer?.files;
+  if (files) onPhotoSelect(files, type);
+}
+
+async function uploadPhotos(reporteId, type) {
+  const files = selectedPhotos[type] || [];
+  if (!files.length) return;
+
+  for (const file of files) {
+    try {
+      const formData = new FormData();
+      formData.append('archivo', file);
+      await fetch(`${API_BASE}/reportes/${reporteId}/adjuntos`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${currentToken}` },
+        body: formData,
+      });
+    } catch (err) {
+      console.warn('Error subiendo foto:', err);
+    }
+  }
+}
+
 /* ── ENVÍO ASR ───────────────────────────────────────────── */
 async function submitASR(e) {
   e.preventDefault();
+  if (!currentToken) { logout(); return; }
+
   const data = collectForm('asr-form');
   const btn  = document.querySelector('#asr-form .btn-submit');
 
   if (!currentOrgId) {
-    alert('Error de conexión con el sistema Atalaya. Por favor recarga la página e intenta de nuevo.');
+    alert('Error de conexión con el sistema Atalaya. Por favor recarga la página.');
     return;
   }
 
@@ -195,24 +412,32 @@ async function submitASR(e) {
   try {
     const res = await fetch(`${API_BASE}/reportes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         organizacionId:        currentOrgId,
-        reportanteId:          null,
         tipo:                  'ASR',
         descripcion:           buildASRBody(data),
         ubicacion:             null,
         area:                  'HANDLING',
         fechaEvento:           data.fecha || null,
-        nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'ANONIMO',
+        nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'PUBLICO',
       }),
     });
 
+    if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const reporte = await res.json();
+
+    // Subir fotos si las hay
+    if (selectedPhotos.asr.length) {
+      await uploadPhotos(reporte.id, 'asr');
+    }
 
     document.getElementById('asr-submitbar').style.display = 'none';
     document.getElementById('asr-success').classList.add('show');
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    selectedPhotos.asr = [];
   } catch (err) {
     alert(`No se pudo enviar el reporte. Por favor intenta de nuevo.\n\nDetalle: ${err.message}`);
     btn.classList.remove('loading');
@@ -223,11 +448,13 @@ async function submitASR(e) {
 /* ── ENVÍO RSO ───────────────────────────────────────────── */
 async function submitRSO(e) {
   e.preventDefault();
+  if (!currentToken) { logout(); return; }
+
   const data = collectForm('rso-form');
   const btn  = document.querySelector('#rso-form .btn-submit');
 
   if (!currentOrgId) {
-    alert('Error de conexión con el sistema Atalaya. Por favor recarga la página e intenta de nuevo.');
+    alert('Error de conexión con el sistema Atalaya. Por favor recarga la página.');
     return;
   }
 
@@ -237,27 +464,261 @@ async function submitRSO(e) {
   try {
     const res = await fetch(`${API_BASE}/reportes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         organizacionId:        currentOrgId,
-        reportanteId:          null,
         tipo:                  'RSO',
         descripcion:           buildRSOBody(data),
         ubicacion:             data.aeropuerto || null,
         area:                  'OMA',
         fechaEvento:           data.fecha || null,
-        nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'ANONIMO',
+        nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'PUBLICO',
       }),
     });
 
+    if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const reporte = await res.json();
+
+    // Subir fotos si las hay
+    if (selectedPhotos.oma.length) {
+      await uploadPhotos(reporte.id, 'oma');
+    }
 
     document.getElementById('rso-submitbar').style.display = 'none';
     document.getElementById('rso-success').classList.add('show');
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    selectedPhotos.oma = [];
   } catch (err) {
     alert(`No se pudo enviar el reporte. Por favor intenta de nuevo.\n\nDetalle: ${err.message}`);
     btn.classList.remove('loading');
     btn.disabled = false;
   }
+}
+
+/* ── MIS REPORTES ────────────────────────────────────────── */
+const ESTADO_LABELS = {
+  NUEVO:         { label: 'Nuevo',          color: '#3b82f6' },
+  EN_ANALISIS:   { label: 'En análisis',    color: '#f59e0b' },
+  EVALUADO:      { label: 'Evaluado',       color: '#8b5cf6' },
+  EN_MITIGACION: { label: 'En mitigación',  color: '#f97316' },
+  CERRADO:       { label: 'Cerrado',        color: '#059669' },
+};
+
+async function loadMisReportes() {
+  const lista = document.getElementById('reportes-lista');
+  if (!lista) return;
+
+  lista.innerHTML = `<div class="reportes-loading"><div class="spinner-dark"></div>Cargando reportes...</div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/reportes/mis-reportes`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` },
+    });
+
+    if (res.status === 401) { logout(); return; }
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const reportes = await res.json();
+
+    if (!reportes.length) {
+      lista.innerHTML = `
+        <div class="reportes-empty">
+          <i class="ph-bold ph-clipboard-text"></i>
+          <p>Aún no has enviado ningún reporte</p>
+          <button class="btn-new-report" onclick="showHome()">
+            <i class="ph-bold ph-plus"></i> Crear primer reporte
+          </button>
+        </div>`;
+      return;
+    }
+
+    lista.innerHTML = reportes.map(r => {
+      const estado = ESTADO_LABELS[r.estado] || { label: r.estado, color: '#64748b' };
+      const fecha = r.creado_en ? new Date(r.creado_en).toLocaleDateString('es-CO', {
+        year:'numeric', month:'short', day:'numeric'
+      }) : '—';
+      return `
+        <div class="reporte-item">
+          <div class="reporte-item-top">
+            <span class="reporte-tipo">${r.tipo || '—'}</span>
+            <span class="reporte-estado" style="background:${estado.color}20;color:${estado.color}">
+              <span class="estado-dot" style="background:${estado.color}"></span>
+              ${estado.label}
+            </span>
+          </div>
+          <div class="reporte-descripcion">${(r.descripcion || '').slice(0, 120)}${(r.descripcion || '').length > 120 ? '…' : ''}</div>
+          <div class="reporte-meta">
+            <span><i class="ph ph-calendar-blank"></i> ${fecha}</span>
+            ${r.area ? `<span><i class="ph ph-map-pin"></i> ${r.area}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    lista.innerHTML = `
+      <div class="reportes-empty">
+        <i class="ph-bold ph-warning-circle" style="color:var(--color-error)"></i>
+        <p>No se pudieron cargar los reportes</p>
+        <button class="btn-new-report" onclick="loadMisReportes()">
+          <i class="ph-bold ph-arrow-clockwise"></i> Reintentar
+        </button>
+      </div>`;
+  }
+}
+
+/* ── CHATBOT ─────────────────────────────────────────────── */
+function showChatWidget() {
+  const w = document.getElementById('chat-widget');
+  if (w) w.style.display = 'block';
+}
+
+function hideChatWidget() {
+  const w = document.getElementById('chat-widget');
+  if (w) w.style.display = 'none';
+  const panel = document.getElementById('chat-panel');
+  if (panel) panel.classList.remove('chat-panel-open');
+  chatState.open = false;
+  const openIcon = document.querySelector('.chat-fab-icon-open');
+  const closeIcon = document.querySelector('.chat-fab-icon-close');
+  if (openIcon) openIcon.style.display = '';
+  if (closeIcon) closeIcon.style.display = 'none';
+}
+
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+
+  chatState.open = !chatState.open;
+  panel.classList.toggle('chat-panel-open', chatState.open);
+
+  const openIcon = document.querySelector('.chat-fab-icon-open');
+  const closeIcon = document.querySelector('.chat-fab-icon-close');
+  if (openIcon) openIcon.style.display = chatState.open ? 'none' : '';
+  if (closeIcon) closeIcon.style.display = chatState.open ? '' : 'none';
+
+  if (chatState.open && !chatState.initialized) {
+    initChatbot();
+  }
+}
+
+async function initChatbot() {
+  chatState.initialized = true;
+  appendChatMsg('assistant', '¡Hola! Soy el Asistente SMS de CSFS. Puedo ayudarte a:\n\n• Entender cómo llenar los formularios ASR y RSO\n• Consultar el estado de tus reportes\n• Responder dudas sobre el sistema SMS\n\n¿En qué te puedo ayudar?');
+
+  // Intentar crear conversación en el chatbot de Atalaya
+  try {
+    const res = await fetch(`${CHAT_BASE}/api/chat/conversaciones`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      chatState.conversacionId = data.conversacion?.id;
+      // Si el chatbot envió un saludo propio, mostrar después del nuestro
+      if (data.mensajes?.length > 1) {
+        const lastMsg = data.mensajes[data.mensajes.length - 1];
+        if (lastMsg.rol === 'assistant') {
+          appendChatMsg('assistant', lastMsg.contenido);
+        }
+      }
+    }
+  } catch {
+    // Si el chatbot no está disponible, el widget funciona con respuestas locales
+    console.info('Chatbot Atalaya no disponible, modo offline activado');
+  }
+}
+
+async function sendChatMsg() {
+  const input = document.getElementById('chat-text-input');
+  const text = input?.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  appendChatMsg('user', text);
+
+  const typingId = appendChatMsg('assistant', '...', true);
+
+  // Si tenemos conexión al chatbot de Atalaya
+  if (chatState.conversacionId) {
+    try {
+      const res = await fetch(`${CHAT_BASE}/api/chat/conversaciones/${chatState.conversacionId}/mensajes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ contenido: text }),
+      });
+
+      removeTyping(typingId);
+
+      if (res.ok) {
+        const data = await res.json();
+        appendChatMsg('assistant', data.mensaje?.contenido || '...');
+        return;
+      }
+    } catch { /* fallback local */ }
+  }
+
+  // Respuestas locales básicas (cuando chatbot no está disponible)
+  removeTyping(typingId);
+  const reply = localChatReply(text);
+  appendChatMsg('assistant', reply);
+}
+
+function localChatReply(text) {
+  const t = text.toLowerCase();
+  if (t.includes('asr') || t.includes('aviation safety')) {
+    return 'El **ASR (Aviation Safety Report)** es el formulario SMS-F001 para reportar peligros, incidentes o condiciones inseguras en operaciones de Handling. Haz clic en "Iniciar reporte" en la tarjeta ASR para comenzar.';
+  }
+  if (t.includes('rso') || t.includes('seguridad operacional')) {
+    return 'El **RSO (Reporte de Seguridad Operacional)** es el formulario FT-GSMS-001 para reportar eventos en rampa, operaciones terrestres y ground handling. Tiene 8 secciones que incluyen datos del evento, tipo, víctimas y evidencias fotográficas.';
+  }
+  if (t.includes('foto') || t.includes('imagen') || t.includes('evidencia')) {
+    return 'Puedes agregar fotos en la sección **Evidencias fotográficas** de cada formulario. Arrastra las imágenes al área marcada o haz clic para seleccionarlas. Se acepta JPG, PNG y WEBP hasta 10 MB por foto.';
+  }
+  if (t.includes('estado') || t.includes('reporte') || t.includes('seguimiento')) {
+    return 'Para ver el estado de tus reportes, haz clic en el ícono de lista en la barra superior o ve a **Mis reportes**. Atalaya SMS notificará a tu correo cada vez que cambie el estado.';
+  }
+  if (t.includes('confidencial') || t.includes('anonimo') || t.includes('anónimo')) {
+    return 'Si marcas el reporte como **Confidencial**, tu identidad será protegida en informes públicos. Si marcas "No confidencial" (Identificado), el sistema enlazará el reporte a tu cuenta para enviarte notificaciones de seguimiento.';
+  }
+  if (t.includes('contraseña') || t.includes('password') || t.includes('clave')) {
+    return 'Para restablecer tu contraseña, accede a Atalaya SMS directamente y usa la opción "¿Olvidaste tu contraseña?". Si no tienes acceso, contacta al Coordinador SMS de tu organización.';
+  }
+  return 'Entendido. Para más información sobre este tema, puedes contactar al Coordinador SMS en sms@csfs.aero, o ingresar al sistema Atalaya donde nuestro asistente avanzado puede analizar reportes en detalle.';
+}
+
+let _chatMsgId = 0;
+function appendChatMsg(rol, texto, isTyping = false) {
+  const list = document.getElementById('chat-messages-list');
+  if (!list) return null;
+
+  const id = `cm-${++_chatMsgId}`;
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = `chat-msg chat-msg-${rol}${isTyping ? ' chat-msg-typing' : ''}`;
+  div.innerHTML = `<div class="chat-bubble">${formatChatText(texto)}</div>`;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function formatChatText(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
 }
