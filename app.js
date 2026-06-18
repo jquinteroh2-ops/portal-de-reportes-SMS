@@ -421,6 +421,8 @@ async function submitASR(e) {
         area:                  'HANDLING',
         fechaEvento:           data.fecha || null,
         nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'PUBLICO',
+        emailReportante:       data.mail   || null,
+        nombreReportante:      data.nombre || null,
       }),
     });
 
@@ -473,6 +475,8 @@ async function submitRSO(e) {
         area:                  'OMA',
         fechaEvento:           data.fecha || null,
         nivelConfidencialidad: data.confidencial === 'Sí' ? 'CONFIDENCIAL' : 'PUBLICO',
+        emailReportante:       data.contacto || null,
+        nombreReportante:      data.nombre   || null,
       }),
     });
 
