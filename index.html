@@ -40,17 +40,6 @@
       </div>
     </a>
     <div class="top-bar-actions">
-      <!-- Info del usuario (visible sólo cuando está autenticado) -->
-      <div id="user-info-bar" class="user-info-bar" style="display:none">
-        <i class="ph-bold ph-user-circle user-avatar-icon"></i>
-        <span id="user-display-name" class="user-display-name"></span>
-        <button type="button" class="btn-topbar" onclick="showMisReportes()" title="Mis reportes">
-          <i class="ph-bold ph-list-bullets"></i>
-        </button>
-        <button type="button" class="btn-topbar btn-logout-bar" onclick="logout()" title="Cerrar sesión">
-          <i class="ph-bold ph-sign-out"></i>
-        </button>
-      </div>
       <button type="button" class="btn-icon" data-theme-toggle aria-label="Cambiar tema">
         <i class="ph-bold ph-moon"></i>
       </button>
@@ -60,57 +49,8 @@
   <!-- ══════════════ MAIN ══════════════ -->
   <main>
 
-    <!-- ── LOGIN ── -->
-    <section id="login" class="page-section active">
-      <div class="login-wrap">
-        <div class="login-card">
-          <div class="login-header">
-            <svg viewBox="0 0 40 40" fill="none" width="52" height="52" class="login-logo-svg">
-              <rect width="40" height="40" rx="10" fill="var(--color-primary)"/>
-              <path d="M8 20 L20 8 L32 20" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M14 20 L14 32 L26 32 L26 20" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="20" cy="20" r="3" fill="#22d3ee"/>
-              <path d="M20 23 L20 32" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <h2 class="login-title">Iniciar sesión</h2>
-            <p class="login-sub">Accede con tus credenciales de Atalaya SMS para generar reportes de seguridad</p>
-          </div>
-          <div id="login-error" class="login-error" style="display:none">
-            <i class="ph-bold ph-warning-circle"></i>
-            <span id="login-error-msg"></span>
-          </div>
-          <form id="login-form" onsubmit="doLogin(event)" class="login-form">
-            <div class="form-group">
-              <label for="login-email">
-                <i class="ph ph-envelope-simple"></i>
-                Correo electrónico
-              </label>
-              <input type="email" id="login-email" placeholder="tu@correo.com" required autocomplete="email">
-            </div>
-            <div class="form-group">
-              <label for="login-password">
-                <i class="ph ph-lock-simple"></i>
-                Contraseña
-              </label>
-              <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn-login" id="login-btn">
-              <span class="spinner"></span>
-              <i class="ph-bold ph-sign-in btn-icon-send"></i>
-              Ingresar al portal
-            </button>
-          </form>
-          <p class="login-footer-note">
-            <i class="ph ph-info"></i>
-            ¿No tienes cuenta? Contacta al Coordinador SMS de tu organización.
-          </p>
-        </div>
-      </div>
-    </section>
-
-
     <!-- ── HOME ── -->
-    <section id="home" class="page-section">
+    <section id="home" class="page-section active">
       <div class="hero-wrap">
         <div class="hero-orb hero-orb-1"></div>
         <div class="hero-orb hero-orb-2"></div>
@@ -253,9 +193,10 @@
                 <div class="form-group">
                   <label for="asr-mail">
                     <i class="ph ph-envelope-simple"></i>
-                    Correo electrónico
+                    Correo para notificaciones
                   </label>
                   <input type="email" id="asr-mail" name="mail" placeholder="correo@empresa.com">
+                  <span class="field-hint"><i class="ph ph-bell"></i> Recibirás actualizaciones del estado de tu reporte en este correo</span>
                 </div>
                 <div class="form-group">
                   <label>
@@ -398,15 +339,15 @@
               </div>
             </div>
             <div class="success-title">¡Reporte ASR registrado!</div>
-            <div class="success-sub">Tu reporte fue enviado exitosamente a Atalaya SMS. Recibirás un correo de confirmación y podrás ver el seguimiento en <strong>Mis reportes</strong>.</div>
+            <div class="success-sub">Tu reporte fue enviado exitosamente a Atalaya SMS. Si ingresaste tu correo, recibirás una notificación cuando cambie el estado de tu reporte.</div>
             <div class="success-actions">
-              <button type="button" class="btn-new-report" onclick="showMisReportes()">
-                <i class="ph-bold ph-list-bullets"></i>
-                Ver mis reportes
+              <button type="button" class="btn-new-report" onclick="showHome()">
+                <i class="ph-bold ph-house"></i>
+                Ir al inicio
               </button>
-              <button type="button" class="btn-new-report-sec" onclick="showHome()">
-                <i class="ph-bold ph-arrow-left"></i>
-                Nuevo reporte
+              <button type="button" class="btn-new-report-sec" onclick="showForm('handling')">
+                <i class="ph-bold ph-plus"></i>
+                Nuevo reporte ASR
               </button>
             </div>
           </div>
@@ -498,10 +439,11 @@
                 </div>
                 <div class="form-group">
                   <label for="rso-contacto">
-                    <i class="ph ph-phone"></i>
-                    Medio de contacto (Tel / e-Mail)
+                    <i class="ph ph-envelope-simple"></i>
+                    Correo para notificaciones
                   </label>
-                  <input type="text" id="rso-contacto" name="contacto" placeholder="Tel o correo">
+                  <input type="email" id="rso-contacto" name="contacto" placeholder="correo@empresa.com">
+                  <span class="field-hint"><i class="ph ph-bell"></i> Recibirás actualizaciones del estado de tu reporte en este correo</span>
                 </div>
                 <div class="form-group">
                   <label>
@@ -832,15 +774,15 @@
               </div>
             </div>
             <div class="success-title">¡Reporte RSO registrado!</div>
-            <div class="success-sub">Tu reporte fue enviado exitosamente a Atalaya SMS. Recibirás un correo de confirmación y podrás ver el seguimiento en <strong>Mis reportes</strong>.</div>
+            <div class="success-sub">Tu reporte fue enviado exitosamente a Atalaya SMS. Si ingresaste tu correo, recibirás una notificación cuando cambie el estado de tu reporte.</div>
             <div class="success-actions">
-              <button type="button" class="btn-new-report" onclick="showMisReportes()">
-                <i class="ph-bold ph-list-bullets"></i>
-                Ver mis reportes
+              <button type="button" class="btn-new-report" onclick="showHome()">
+                <i class="ph-bold ph-house"></i>
+                Ir al inicio
               </button>
-              <button type="button" class="btn-new-report-sec" onclick="showHome()">
-                <i class="ph-bold ph-arrow-left"></i>
-                Nuevo reporte
+              <button type="button" class="btn-new-report-sec" onclick="showForm('oma')">
+                <i class="ph-bold ph-plus"></i>
+                Nuevo reporte RSO
               </button>
             </div>
           </div>
@@ -863,29 +805,6 @@
     </section>
 
 
-    <!-- ── MIS REPORTES ── -->
-    <section id="mis-reportes" class="page-section">
-      <div class="form-wrapper">
-        <button type="button" class="form-back" onclick="showHome()">
-          <i class="ph-bold ph-arrow-left"></i>
-          Volver al inicio
-        </button>
-        <div class="form-header">
-          <div class="form-type-badge badge-handling">
-            <i class="ph-bold ph-list-bullets"></i>
-            Mis Reportes
-          </div>
-          <h2 class="form-title">Historial de mis reportes</h2>
-          <p class="form-subtitle">Reportes enviados desde el Portal SMS · CSFS</p>
-        </div>
-        <div id="reportes-lista" class="reportes-lista">
-          <div class="reportes-loading">
-            <div class="spinner-dark"></div>
-            Cargando reportes...
-          </div>
-        </div>
-      </div>
-    </section>
 
   </main>
 
