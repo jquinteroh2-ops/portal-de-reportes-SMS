@@ -231,7 +231,9 @@ Enviado desde el Portal SMS · CSFS`;
 /* ── FOTOS ───────────────────────────────────────────────── */
 function onPhotoSelect(files, type) {
   const MAX = 10;
-  const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+  const newFiles = Array.from(files).filter(f =>
+    f.type.startsWith('image/') || f.type.startsWith('video/')
+  );
   if (!newFiles.length) return;
 
   selectedPhotos[type] = [...selectedPhotos[type], ...newFiles].slice(0, MAX);
@@ -248,11 +250,19 @@ function renderPhotoPreviews(type) {
 
   selectedPhotos[type].forEach((file, idx) => {
     const url = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith('video/');
     const item = document.createElement('div');
     item.className = 'photo-preview-item';
+
+    const mediaEl = isVideo
+      ? `<video src="${url}" class="preview-video" muted playsinline
+           onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0"></video>
+         <span class="preview-video-badge"><i class="ph-bold ph-video-camera"></i></span>`
+      : `<img src="${url}" alt="Foto ${idx + 1}" onload="URL.revokeObjectURL(this.src)">`;
+
     item.innerHTML = `
-      <img src="${url}" alt="Foto ${idx + 1}" onload="URL.revokeObjectURL(this.src)">
-      <button type="button" class="photo-remove-btn" onclick="removePhoto('${type}',${idx})" aria-label="Eliminar foto">
+      ${mediaEl}
+      <button type="button" class="photo-remove-btn" onclick="removePhoto('${type}',${idx})" aria-label="Eliminar">
         <i class="ph-bold ph-x"></i>
       </button>
       <div class="photo-name">${file.name.length > 18 ? file.name.slice(0,15)+'...' : file.name}</div>

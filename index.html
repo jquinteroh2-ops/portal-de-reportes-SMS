@@ -255,12 +255,12 @@
             </div>
           </div>
 
-          <!-- Sección 3: Evidencias fotográficas ASR -->
+          <!-- Sección 3: Evidencias ASR -->
           <div class="form-card">
             <div class="form-section-header">
               <div class="sec-num sec-num-photo">3</div>
               <i class="ph-bold ph-images sec-icon"></i>
-              <span class="sec-title">Evidencias fotográficas (Opcional)</span>
+              <span class="sec-title">Evidencias: fotos y videos (Opcional)</span>
             </div>
             <div class="form-body">
               <div class="photo-drop-zone" id="asr-drop-zone"
@@ -269,10 +269,10 @@
                    ondragleave="handleDragLeave(event)"
                    ondrop="handleDrop(event,'asr')">
                 <i class="ph-bold ph-cloud-arrow-up photo-drop-icon"></i>
-                <div class="photo-drop-text">Arrastra fotos aquí o haz clic para seleccionar</div>
-                <div class="photo-drop-sub">JPG, PNG, WEBP · Máximo 10 MB por foto</div>
+                <div class="photo-drop-text">Arrastra fotos o videos aquí o haz clic para seleccionar</div>
+                <div class="photo-drop-sub">JPG, PNG, WEBP, MP4, MOV · Máximo 10 archivos</div>
               </div>
-              <input type="file" id="asr-photo-input" accept="image/*" multiple style="display:none"
+              <input type="file" id="asr-photo-input" accept="image/*,video/*" multiple style="display:none"
                      onchange="onPhotoSelect(this.files,'asr')">
               <div class="photo-preview-grid" id="asr-preview-grid"></div>
             </div>
@@ -710,12 +710,12 @@
             </div>
           </div>
 
-          <!-- Sección 7: Evidencias fotográficas RSO -->
+          <!-- Sección 7: Evidencias RSO -->
           <div class="form-card">
             <div class="form-section-header">
               <div class="sec-num sec-num-photo oma-num">7</div>
               <i class="ph-bold ph-images sec-icon"></i>
-              <span class="sec-title">Evidencias fotográficas (Opcional)</span>
+              <span class="sec-title">Evidencias: fotos y videos (Opcional)</span>
             </div>
             <div class="form-body">
               <div class="photo-drop-zone" id="oma-drop-zone"
@@ -724,10 +724,10 @@
                    ondragleave="handleDragLeave(event)"
                    ondrop="handleDrop(event,'oma')">
                 <i class="ph-bold ph-cloud-arrow-up photo-drop-icon"></i>
-                <div class="photo-drop-text">Arrastra fotos aquí o haz clic para seleccionar</div>
-                <div class="photo-drop-sub">JPG, PNG, WEBP · Máximo 10 MB por foto</div>
+                <div class="photo-drop-text">Arrastra fotos o videos aquí o haz clic para seleccionar</div>
+                <div class="photo-drop-sub">JPG, PNG, WEBP, MP4, MOV · Máximo 10 archivos</div>
               </div>
-              <input type="file" id="oma-photo-input" accept="image/*" multiple style="display:none"
+              <input type="file" id="oma-photo-input" accept="image/*,video/*" multiple style="display:none"
                      onchange="onPhotoSelect(this.files,'oma')">
               <div class="photo-preview-grid" id="oma-preview-grid"></div>
             </div>

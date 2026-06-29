@@ -825,7 +825,14 @@ footer {
   transition: transform var(--transition), box-shadow var(--transition);
 }
 .photo-preview-item:hover { transform: scale(1.03); box-shadow: var(--shadow-md); }
-.photo-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-preview-item img  { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preview-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preview-video-badge {
+  position: absolute; top: 5px; left: 5px;
+  background: rgba(0,0,0,0.6); color: #fff;
+  border-radius: 4px; padding: 2px 5px; font-size: 0.7rem;
+  display: flex; align-items: center; gap: 3px; pointer-events: none;
+}
 .photo-remove-btn {
   position: absolute; top: 4px; right: 4px;
   width: 22px; height: 22px; border-radius: 50%;
