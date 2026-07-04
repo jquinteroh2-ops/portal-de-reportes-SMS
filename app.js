@@ -7,28 +7,15 @@ const API_BASE  = 'https://thriving-kindness-production-443e.up.railway.app/api'
 const CHAT_BASE = 'https://welcoming-trust-production-b45b.up.railway.app';
 const ORG_ID    = '0cdba0e3-9586-49f7-8bad-046c6a7d11f0';
 
-const _SVC = { email: 'josequinteroh0000@gmail.com', pass: 'Johana130615' };
-let _token   = null;
-let _tokenEx = 0;
-
-async function getToken() {
-  if (_token && Date.now() < _tokenEx) return _token;
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: _SVC.email, password: _SVC.pass }),
-  });
-  if (!res.ok) throw new Error('No se pudo conectar con Atalaya SMS');
-  const d = await res.json();
-  _token   = d.token;
-  _tokenEx = Date.now() + 23 * 3600 * 1000;
-  return _token;
-}
-
 /* ── ESTADO ──────────────────────────────────────────────── */
 let selectedPhotos = { asr: [], oma: [] };
 let chatState = { open: false, initialized: false };
 let chatHistory = [];
+let chatFotoPendiente = null;    // foto seleccionada, lista para enviar en el próximo mensaje
+let chatFotoParaAdjuntar = null; // última foto ya enviada a AVI, se sube como adjunto cuando se cree el reporte
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
 
 /* ── TEMA (dark / light) ─────────────────────────────────── */
 (function initTheme() {
@@ -127,10 +114,7 @@ async function buscarReporte() {
   };
 
   try {
-    const token = await getToken();
-    const res = await fetch(`${API_BASE}/reportes/${encodeURIComponent(id)}/seguimiento`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
+    const res = await fetch(`${API_BASE}/reportes/${encodeURIComponent(id)}/seguimiento`);
 
     if (res.status === 404) {
       resultEl.innerHTML = `<div class="track-not-found">
@@ -254,14 +238,6 @@ function collectForm(formId) {
     data[key] = data[key] ? `${data[key]} | ${value}` : value;
   });
   return data;
-}
-
-async function authHeaders() {
-  const token = await getToken();
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
 }
 
 /* ── BUILDERS DE TEXTO PARA API ──────────────────────────── */
@@ -416,14 +392,12 @@ async function uploadPhotos(reporteId, type) {
   const files = selectedPhotos[type] || [];
   if (!files.length) return;
 
-  const token = await getToken();
   for (const file of files) {
     try {
       const formData = new FormData();
       formData.append('archivo', file);
       await fetch(`${API_BASE}/reportes/${reporteId}/adjuntos`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
     } catch (err) {
@@ -445,7 +419,7 @@ async function submitASR(e) {
   try {
     const res = await fetch(`${API_BASE}/reportes`, {
       method: 'POST',
-      headers: await authHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         organizacionId:        ORG_ID,
         tipo:                  'ASR',
@@ -492,7 +466,7 @@ async function submitRSO(e) {
   try {
     const res = await fetch(`${API_BASE}/reportes`, {
       method: 'POST',
-      headers: await authHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         organizacionId:        ORG_ID,
         tipo:                  'RSO',
@@ -552,23 +526,151 @@ function toggleChat() {
 function initChatbot() {
   chatState.initialized = true;
   chatHistory = [];
+  chatFotoPendiente = null;
+  chatFotoParaAdjuntar = null;
+  quitarFotoChat();
   const greeting = '¡Hola! Soy AVI 👋 Estoy aquí para ayudarte a registrar tu reporte de seguridad de forma fácil, sin formularios complicados.\n\n¿Qué situación quieres reportar?';
   chatHistory.push({ rol: 'assistant', contenido: greeting });
   appendChatMsg('assistant', greeting);
+}
+
+function onFotoChatSelect(files) {
+  const file = files && files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    chatFotoPendiente = { file, base64: reader.result.split(',').pop(), mimeType: file.type };
+    const img = document.getElementById('chat-photo-preview-img');
+    const wrap = document.getElementById('chat-photo-preview');
+    if (img) img.src = reader.result;
+    if (wrap) wrap.style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function quitarFotoChat() {
+  chatFotoPendiente = null;
+  const wrap = document.getElementById('chat-photo-preview');
+  if (wrap) wrap.style.display = 'none';
+  const input = document.getElementById('chat-photo-input');
+  if (input) input.value = '';
+}
+
+async function subirFotoChatComoAdjunto(reporteId, file) {
+  try {
+    const formData = new FormData();
+    formData.append('archivo', file);
+    await fetch(`${API_BASE}/reportes/${reporteId}/adjuntos`, { method: 'POST', body: formData });
+  } catch (err) {
+    console.warn('Error subiendo foto del chat:', err);
+  }
+}
+
+async function toggleMic() {
+  if (isRecording) {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      setMicRecording(false);
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      if (blob.size > 0) sendVoiceMsg(blob);
+    };
+    mediaRecorder.start();
+    setMicRecording(true);
+  } catch (err) {
+    console.warn('Error de micrófono:', err);
+    appendChatMsg('assistant', 'No pude acceder al micrófono. Revisa los permisos del navegador o escribe tu mensaje.');
+  }
+}
+
+function setMicRecording(recording) {
+  isRecording = recording;
+  const micBtn = document.querySelector('.chat-mic-btn');
+  if (micBtn) micBtn.classList.toggle('recording', recording);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',').pop());
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sendVoiceMsg(blob) {
+  const sendBtn = document.querySelector('.chat-send-btn');
+  const micBtn = document.querySelector('.chat-mic-btn');
+  if (sendBtn) sendBtn.disabled = true;
+  if (micBtn) micBtn.disabled = true;
+
+  const typingId = appendChatMsg('assistant', '', true);
+
+  try {
+    const audioBase64 = await blobToBase64(blob);
+    const res = await fetch(`${CHAT_BASE}/portal/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mensajes: chatHistory, orgId: ORG_ID, audioBase64, audioMimeType: blob.type }),
+    });
+
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const data = await res.json();
+    removeTyping(typingId);
+
+    if (data.texto_transcrito) {
+      chatHistory.push({ rol: 'user', contenido: data.texto_transcrito });
+      appendChatMsg('user', data.texto_transcrito);
+    }
+
+    const respText = data.texto || 'Hubo un problema procesando tu nota de voz. Por favor intenta de nuevo.';
+    chatHistory.push({ rol: 'assistant', contenido: respText });
+    appendChatMsg('assistant', respText);
+
+    if (data.documentoCreado?.id) {
+      appendReporteCreado(data.documentoCreado.id);
+      if (chatFotoParaAdjuntar) {
+        subirFotoChatComoAdjunto(data.documentoCreado.id, chatFotoParaAdjuntar);
+        chatFotoParaAdjuntar = null;
+      }
+    }
+  } catch (err) {
+    removeTyping(typingId);
+    const errMsg = 'No pude procesar la nota de voz. Por favor intenta de nuevo o escribe tu mensaje.';
+    chatHistory.push({ rol: 'assistant', contenido: errMsg });
+    appendChatMsg('assistant', errMsg);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+    if (micBtn) micBtn.disabled = false;
+  }
 }
 
 async function sendChatMsg() {
   const input = document.getElementById('chat-text-input');
   const sendBtn = document.querySelector('.chat-send-btn');
   const text = input?.value.trim();
-  if (!text) return;
+  const foto = chatFotoPendiente;
+  if (!text && !foto) return;
 
   input.value = '';
   input.disabled = true;
   if (sendBtn) sendBtn.disabled = true;
 
-  chatHistory.push({ rol: 'user', contenido: text });
-  appendChatMsg('user', text);
+  const textoMostrado = text || '📷 (foto adjunta)';
+  chatHistory.push({ rol: 'user', contenido: textoMostrado });
+  appendChatMsg('user', textoMostrado);
+  if (foto) {
+    chatFotoParaAdjuntar = foto.file;
+    quitarFotoChat();
+  }
 
   const typingId = appendChatMsg('assistant', '', true);
 
@@ -576,7 +678,10 @@ async function sendChatMsg() {
     const res = await fetch(`${CHAT_BASE}/portal/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensajes: chatHistory, orgId: ORG_ID }),
+      body: JSON.stringify({
+        mensajes: chatHistory, orgId: ORG_ID,
+        ...(foto ? { imagenBase64: foto.base64, mimeType: foto.mimeType } : {}),
+      }),
     });
 
     if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -590,6 +695,10 @@ async function sendChatMsg() {
 
     if (data.documentoCreado?.id) {
       appendReporteCreado(data.documentoCreado.id);
+      if (chatFotoParaAdjuntar) {
+        subirFotoChatComoAdjunto(data.documentoCreado.id, chatFotoParaAdjuntar);
+        chatFotoParaAdjuntar = null;
+      }
     }
   } catch (err) {
     removeTyping(typingId);

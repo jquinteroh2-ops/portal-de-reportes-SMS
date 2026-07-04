@@ -892,7 +892,21 @@
       </button>
     </div>
     <div class="chat-messages" id="chat-messages-list"></div>
+    <div class="chat-photo-preview" id="chat-photo-preview" style="display:none">
+      <img id="chat-photo-preview-img" alt="Foto adjunta">
+      <button type="button" class="chat-photo-remove-btn" onclick="quitarFotoChat()" aria-label="Quitar foto">
+        <i class="ph-bold ph-x"></i>
+      </button>
+    </div>
     <div class="chat-input-bar">
+      <input type="file" id="chat-photo-input" accept="image/*" style="display:none"
+             onchange="onFotoChatSelect(this.files)">
+      <button type="button" class="chat-icon-btn" onclick="document.getElementById('chat-photo-input').click()" aria-label="Adjuntar foto">
+        <i class="ph-bold ph-camera"></i>
+      </button>
+      <button type="button" class="chat-icon-btn chat-mic-btn" onclick="toggleMic()" aria-label="Grabar nota de voz">
+        <i class="ph-bold ph-microphone"></i>
+      </button>
       <input type="text" id="chat-text-input" class="chat-text-input"
              placeholder="Pregunta sobre el portal o tus reportes..."
              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg()}">
