@@ -534,18 +534,70 @@ function initChatbot() {
   appendChatMsg('assistant', greeting);
 }
 
-function onFotoChatSelect(files) {
+function leerComoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Ningún modelo de Groq (incluido el de visión) acepta video como entrada —
+// se extrae un fotograma en el navegador y se manda por el mismo canal de
+// imagen que ya existe. El video original se conserva aparte (ver
+// onFotoChatSelect) para subirlo completo como evidencia real del reporte.
+function extraerFrameDeVideoPortal(file) {
+  return new Promise((resolve, reject) => {
+    const MAX = 1280;
+    const objectUrl = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.src = objectUrl;
+    video.onloadedmetadata = () => {
+      // El fotograma exacto en t=0 suele venir en negro en varios codecs
+      // antes de que el decoder arranque — se busca un instante después.
+      video.currentTime = Number.isFinite(video.duration) ? Math.min(0.1, video.duration / 2) : 0.1;
+    };
+    video.onseeked = () => {
+      let w = video.videoWidth, h = video.videoHeight;
+      if (Math.max(w, h) > MAX) {
+        const escala = MAX / Math.max(w, h);
+        w = Math.round(w * escala);
+        h = Math.round(h * escala);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('No se pudo procesar el video')); return; }
+      ctx.drawImage(video, 0, 0, w, h);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    video.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('No se pudo leer el video')); };
+  });
+}
+
+async function onFotoChatSelect(files) {
   const file = files && files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    chatFotoPendiente = { file, base64: reader.result.split(',').pop(), mimeType: file.type };
+  const esVideo = file.type.startsWith('video/');
+
+  try {
+    const dataUrl = esVideo ? await extraerFrameDeVideoPortal(file) : await leerComoDataUrl(file);
+    chatFotoPendiente = { file, base64: dataUrl.split(',').pop(), mimeType: esVideo ? 'image/jpeg' : file.type, esVideo };
     const img = document.getElementById('chat-photo-preview-img');
     const wrap = document.getElementById('chat-photo-preview');
-    if (img) img.src = reader.result;
+    const badge = document.getElementById('chat-photo-video-badge');
+    if (img) img.src = dataUrl;
     if (wrap) wrap.style.display = '';
-  };
-  reader.readAsDataURL(file);
+    if (badge) badge.style.display = esVideo ? '' : 'none';
+  } catch (err) {
+    console.warn('Error procesando adjunto del chat:', err);
+    alert(esVideo ? 'No se pudo procesar el video. Intenta con otro archivo.' : 'No se pudo procesar la foto. Intenta con otra.');
+  }
 }
 
 function quitarFotoChat() {

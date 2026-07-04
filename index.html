@@ -894,14 +894,17 @@
     <div class="chat-messages" id="chat-messages-list"></div>
     <div class="chat-photo-preview" id="chat-photo-preview" style="display:none">
       <img id="chat-photo-preview-img" alt="Foto adjunta">
+      <span class="chat-photo-video-badge" id="chat-photo-video-badge" style="display:none">
+        <i class="ph-bold ph-video-camera"></i>
+      </span>
       <button type="button" class="chat-photo-remove-btn" onclick="quitarFotoChat()" aria-label="Quitar foto">
         <i class="ph-bold ph-x"></i>
       </button>
     </div>
     <div class="chat-input-bar">
-      <input type="file" id="chat-photo-input" accept="image/*" style="display:none"
+      <input type="file" id="chat-photo-input" accept="image/*,video/*" style="display:none"
              onchange="onFotoChatSelect(this.files)">
-      <button type="button" class="chat-icon-btn" onclick="document.getElementById('chat-photo-input').click()" aria-label="Adjuntar foto">
+      <button type="button" class="chat-icon-btn" onclick="document.getElementById('chat-photo-input').click()" aria-label="Adjuntar foto o video">
         <i class="ph-bold ph-camera"></i>
       </button>
       <button type="button" class="chat-icon-btn chat-mic-btn" onclick="toggleMic()" aria-label="Grabar nota de voz">
