@@ -113,6 +113,17 @@ a, button, [role="button"] {
   position: absolute; width: 1px; height: 1px; padding: 0;
   margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
 }
+/* Honeypot anti-spam: oculto para humanos (visual y lectores de pantalla),
+   pero presente en el DOM para que los bots que rellenan formularios lo detecten. */
+.hp-field {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 1px; height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 ::selection { background: rgba(30,64,175,0.15); color: var(--color-text); }
 :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
 @media (prefers-reduced-motion: reduce) {

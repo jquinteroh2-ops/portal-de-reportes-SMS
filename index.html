@@ -11,10 +11,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 
   <!-- Phosphor Icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"
+          integrity="sha384-cPFV+/abYd3INVFHPmSKpBmcnH+Q+bTZW7dv/EiuShUNPkHyFmRF8PsL7Ibfvunk"
+          crossorigin="anonymous"></script>
 
   <!-- QR Code -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+          integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU"
+          crossorigin="anonymous"></script>
 
   <!-- Estilos -->
   <link rel="stylesheet" href="styles.css">
@@ -209,6 +213,12 @@
         </div>
 
         <form id="asr-form" onsubmit="submitASR(event)">
+
+          <!-- Honeypot anti-spam: campo oculto que un humano nunca completa -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="asr-website">Website</label>
+            <input type="text" id="asr-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
 
           <!-- Sección 1: Datos del Reportante -->
           <div class="form-card">
@@ -463,6 +473,12 @@
         </div>
 
         <form id="rso-form" onsubmit="submitRSO(event)">
+
+          <!-- Honeypot anti-spam: campo oculto que un humano nunca completa -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="rso-website">Website</label>
+            <input type="text" id="rso-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
 
           <!-- Sección 1: Identificación del Reportante -->
           <div class="form-card">

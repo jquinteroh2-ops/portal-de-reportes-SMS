@@ -90,6 +90,18 @@ function showTracking() {
   setTimeout(() => document.getElementById('track-id-input').focus(), 200);
 }
 
+/* ── SEGURIDAD: escape de HTML ───────────────────────────── */
+// Defensa en profundidad: escapa cualquier valor antes de interpolarlo en
+// innerHTML, incluso si en teoría ya viene saneado desde el backend.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function buscarReporte() {
   const idInput  = document.getElementById('track-id-input');
   const resultEl = document.getElementById('track-result');
@@ -136,17 +148,17 @@ async function buscarReporte() {
     resultEl.innerHTML = `
       <div class="track-result-card">
         <div class="track-result-header">
-          <div class="track-result-tipo">${d.tipo}</div>
-          <div class="track-estado-badge ${ESTADO_CLASS[d.estado] ?? ''}">${ESTADO_LABEL[d.estado] ?? d.estado}</div>
+          <div class="track-result-tipo">${escapeHtml(d.tipo)}</div>
+          <div class="track-estado-badge ${ESTADO_CLASS[d.estado] ?? ''}">${escapeHtml(ESTADO_LABEL[d.estado] ?? d.estado)}</div>
         </div>
         <div class="track-result-grid">
           <div class="track-field">
             <span class="track-field-label">Número de reporte</span>
-            <span class="track-field-value track-id-mono">${d.id}</span>
+            <span class="track-field-value track-id-mono">${escapeHtml(d.id)}</span>
           </div>
           ${d.area ? `<div class="track-field">
             <span class="track-field-label">Área</span>
-            <span class="track-field-value">${d.area}</span>
+            <span class="track-field-value">${escapeHtml(d.area)}</span>
           </div>` : ''}
           <div class="track-field">
             <span class="track-field-label">Fecha del evento</span>
@@ -158,7 +170,7 @@ async function buscarReporte() {
           </div>
           ${d.aeropuertoIcao ? `<div class="track-field">
             <span class="track-field-label">Aeropuerto</span>
-            <span class="track-field-value">${d.aeropuertoIcao}</span>
+            <span class="track-field-value">${escapeHtml(d.aeropuertoIcao)}</span>
           </div>` : ''}
         </div>
         <p class="track-result-note">Para consultas sobre tu reporte, contacta al equipo de seguridad: <a href="mailto:sms@csfs.aero">sms@csfs.aero</a></p>
@@ -365,7 +377,7 @@ function renderPhotoPreviews(type) {
       <button type="button" class="photo-remove-btn" onclick="removePhoto('${type}',${idx})" aria-label="Eliminar">
         <i class="ph-bold ph-x"></i>
       </button>
-      <div class="photo-name">${file.name.length > 18 ? file.name.slice(0,15)+'...' : file.name}</div>
+      <div class="photo-name">${escapeHtml(file.name.length > 18 ? file.name.slice(0,15)+'...' : file.name)}</div>
     `;
     grid.appendChild(item);
   });
@@ -417,6 +429,20 @@ async function submitASR(e) {
   const data = collectForm('asr-form');
   const btn  = document.querySelector('#asr-form .btn-submit');
 
+  // Honeypot anti-spam: si el campo oculto viene lleno, es un bot.
+  // Simulamos un envío exitoso sin llamar a la API, sin delatar el honeypot.
+  if (data.website) {
+    btn.classList.add('loading');
+    btn.disabled = true;
+    setTimeout(() => {
+      document.getElementById('asr-submitbar').style.display = 'none';
+      document.getElementById('asr-success').classList.add('show');
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      selectedPhotos.asr = [];
+    }, 600);
+    return;
+  }
+
   btn.classList.add('loading');
   btn.disabled = true;
 
@@ -463,6 +489,20 @@ async function submitRSO(e) {
 
   const data = collectForm('rso-form');
   const btn  = document.querySelector('#rso-form .btn-submit');
+
+  // Honeypot anti-spam: si el campo oculto viene lleno, es un bot.
+  // Simulamos un envío exitoso sin llamar a la API, sin delatar el honeypot.
+  if (data.website) {
+    btn.classList.add('loading');
+    btn.disabled = true;
+    setTimeout(() => {
+      document.getElementById('rso-submitbar').style.display = 'none';
+      document.getElementById('rso-success').classList.add('show');
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      selectedPhotos.oma = [];
+    }, 600);
+    return;
+  }
 
   btn.classList.add('loading');
   btn.disabled = true;
@@ -777,7 +817,7 @@ function appendReporteCreado(reporteId) {
   div.innerHTML = `
     <div class="chat-bubble chat-bubble-success">
       <div class="chat-success-title">✅ Reporte registrado</div>
-      <div class="chat-success-id">${reporteId}</div>
+      <div class="chat-success-id">${escapeHtml(reporteId)}</div>
       <div class="chat-success-note">Guarda este número para hacer seguimiento de tu reporte con el Coordinador SMS.</div>
     </div>
   `;
@@ -812,10 +852,7 @@ function removeTyping(id) {
 }
 
 function formatChatText(text) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>');
 }
