@@ -7,6 +7,10 @@ const API_BASE  = 'https://thriving-kindness-production-443e.up.railway.app/api'
 const CHAT_BASE = 'https://welcoming-trust-production-b45b.up.railway.app';
 const ORG_ID    = '0cdba0e3-9586-49f7-8bad-046c6a7d11f0';
 
+// Los endpoints del portal en Atalaya (crear reporte, subir adjuntos y consultar
+// seguimiento) son PÚBLICOS: no requieren autenticación. Por eso el portal NO
+// almacena ninguna credencial — sería un riesgo de seguridad exponerla en el
+// código del cliente (que es visible para cualquiera).
 /* ── ESTADO ──────────────────────────────────────────────── */
 let selectedPhotos = { asr: [], oma: [] };
 let chatState = { open: false, initialized: false };
