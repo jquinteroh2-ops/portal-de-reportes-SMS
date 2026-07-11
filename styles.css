@@ -31,9 +31,10 @@
   --color-error:           #dc2626;
   --color-success:         #059669;
   --color-success-light:   #d1fae5;
-  --shadow-sm:   0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
-  --shadow-md:   0 4px 16px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.05);
-  --shadow-lg:   0 16px 48px rgba(15,23,42,0.12), 0 6px 16px rgba(15,23,42,0.08);
+  /* Sombras con tinte azul de marca (misma familia que --shadow-float) */
+  --shadow-sm:   0 1px 3px rgba(30,64,175,0.07), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md:   0 6px 20px rgba(30,64,175,0.10), 0 2px 6px rgba(15,23,42,0.04);
+  --shadow-lg:   0 16px 48px rgba(30,64,175,0.14), 0 6px 16px rgba(15,23,42,0.06);
   --shadow-float:0 20px 60px rgba(30,64,175,0.20), 0 8px 20px rgba(30,64,175,0.12);
   --radius-sm:   0.375rem;
   --radius-md:   0.5rem;
@@ -139,6 +140,14 @@ a, button, [role="button"] {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: none; }
 }
+@keyframes section-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
 @keyframes float {
   0%,100% { transform: translateY(0) rotate(0deg); }
   33%     { transform: translateY(-18px) rotate(1.5deg); }
@@ -229,7 +238,15 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 
 /* ── PAGE SECTIONS ────────────────────────────────────────── */
 .page-section { display: none; }
-.page-section.active { display: block; animation: fadeUp 0.32s ease both; }
+.page-section.active { display: block; animation: section-in 0.38s cubic-bezier(0.16,1,0.3,1) both; }
+/* Cascada sutil de los bloques internos al entrar a una sección de formulario.
+   Fill "backwards": arrancan invisibles durante su delay y al terminar vuelven
+   a sus estilos normales (no rompe los transform de hover). */
+.page-section.active .form-wrapper > * { animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) backwards; }
+.page-section.active .form-wrapper > *:nth-child(2) { animation-delay: 60ms; }
+.page-section.active .form-wrapper > *:nth-child(3) { animation-delay: 110ms; }
+.page-section.active .form-wrapper > *:nth-child(4) { animation-delay: 150ms; }
+.page-section.active .form-wrapper > *:nth-child(n+5) { animation-delay: 185ms; }
 
 /* ── HERO ─────────────────────────────────────────────────── */
 .hero-wrap {
@@ -311,19 +328,24 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 .report-cards {
   display: grid; grid-template-columns: 1fr;
   gap: var(--space-5); margin-bottom: var(--space-10);
-  animation: fadeUp 0.5s ease 0.36s both;
 }
 @media (min-width: 540px) { .report-cards { grid-template-columns: 1fr 1fr; } }
 
 .report-card {
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   padding: var(--space-6);
   cursor: pointer; text-align: left;
   position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm);
   transition: border-color var(--transition), box-shadow var(--transition-slow), transform var(--transition-slow);
+  /* Entrada con stagger al cargar el home (fill backwards: no interfiere con el hover) */
+  animation: card-in 0.55s cubic-bezier(0.16,1,0.3,1) backwards;
 }
+.report-card:nth-child(1) { animation-delay: 0.36s; }
+.report-card:nth-child(2) { animation-delay: 0.46s; }
+.report-card:nth-child(3) { animation-delay: 0.56s; }
 .report-card::before {
   content: ''; position: absolute; inset: 0;
   background: var(--card-grad);
@@ -331,8 +353,11 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 }
 .report-card:hover {
   border-color: var(--card-color);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px var(--card-color);
+  box-shadow: 0 18px 44px rgba(30,64,175,0.16), 0 6px 14px rgba(30,64,175,0.10), 0 0 0 1px var(--card-color);
   transform: translateY(-5px) scale(1.015);
+}
+[data-theme="dark"] .report-card:hover {
+  box-shadow: 0 18px 44px rgba(0,0,0,0.55), 0 0 0 1px var(--card-color);
 }
 .report-card:active { transform: translateY(-2px) scale(1.005); }
 .report-card:hover::before { opacity: 1; }
@@ -355,8 +380,9 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
   font-size: 2rem;
   transition: transform var(--transition-slow);
 }
-.handling .card-icon { background: var(--color-handling-light); }
-.oma .card-icon     { background: var(--color-oma-light); }
+.card-icon i { line-height: 1; }
+.handling .card-icon { background: var(--color-handling-light); color: var(--color-handling); }
+.oma .card-icon     { background: var(--color-oma-light); color: var(--color-oma); }
 .report-card:hover .card-icon { transform: scale(1.12) rotate(6deg); }
 
 .card-badge {
@@ -393,12 +419,12 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 .qr-box {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   padding: var(--space-8) var(--space-6);
   display: flex; flex-direction: column; align-items: center; gap: var(--space-5);
   box-shadow: var(--shadow-md);
   position: relative; overflow: hidden;
-  animation: fadeUp 0.5s ease 0.44s both;
+  animation: fadeUp 0.5s ease 0.64s both;
 }
 .qr-box::before {
   content: ''; position: absolute; inset: 0;
@@ -608,7 +634,7 @@ select { appearance: auto; }
 /* ── SUBMIT BAR ───────────────────────────────────────────── */
 .submit-bar {
   background: var(--color-surface); border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-2xl); padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6);
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; gap: var(--space-3);
   position: relative; overflow: hidden;
@@ -1034,16 +1060,21 @@ footer {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-5px); }
 }
-/* report-created success card inside chat */
+/* report-created success card inside chat
+   (fondo fijo claro en ambos temas → texto fijo oscuro para legibilidad) */
 .chat-bubble-success {
-  background: #f0fdf4 !important; border: 1px solid #bbf7d0 !important; color: var(--color-text) !important;
+  background: #f0fdf4 !important; border: 1px solid #bbf7d0 !important; color: #14532d !important;
 }
-.chat-success-title { font-weight: 700; font-size: var(--text-xs); margin-bottom: 4px; }
+.chat-success-title {
+  font-weight: 700; font-size: var(--text-xs); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 5px;
+}
+.chat-success-title i { color: #16a34a; font-size: 0.9rem; flex-shrink: 0; }
 .chat-success-id {
   font-family: monospace; font-size: 0.65rem; word-break: break-all;
   color: #15803d; background: #dcfce7; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px;
 }
-.chat-success-note { font-size: 0.65rem; color: var(--color-text-muted); }
+.chat-success-note { font-size: 0.65rem; color: #166534; }
 
 .chat-input-bar {
   display: flex; align-items: center; gap: var(--space-2);
@@ -1119,14 +1150,14 @@ footer {
   --card-color: var(--color-tracking);
   --card-grad: linear-gradient(135deg, rgba(5,150,105,0.06) 0%, transparent 60%);
 }
-.tracking .card-icon { background: var(--color-tracking-light); }
+.tracking .card-icon { background: var(--color-tracking-light); color: var(--color-tracking); }
 .badge-tracking { background: var(--color-tracking-light); color: var(--color-tracking); }
 
 /* Sección de búsqueda */
 .track-search-card {
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
   padding: var(--space-6);
   margin-top: var(--space-6);
 }

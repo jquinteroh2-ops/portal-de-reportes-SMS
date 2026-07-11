@@ -573,7 +573,7 @@ function initChatbot() {
   chatFotoPendiente = null;
   chatFotoParaAdjuntar = null;
   quitarFotoChat();
-  const greeting = '¡Hola! Soy AVI 👋 Estoy aquí para ayudarte a registrar tu reporte de seguridad de forma fácil, sin formularios complicados.\n\n¿Qué situación quieres reportar?';
+  const greeting = '¡Hola! Soy AVI, tu asistente de reportes de seguridad. Estoy aquí para ayudarte a registrar tu reporte de forma fácil, sin formularios complicados.\n\n¿Qué situación quieres reportar?';
   chatHistory.push({ rol: 'assistant', contenido: greeting });
   appendChatMsg('assistant', greeting);
 }
@@ -760,7 +760,7 @@ async function sendChatMsg() {
   input.disabled = true;
   if (sendBtn) sendBtn.disabled = true;
 
-  const textoMostrado = text || '📷 (foto adjunta)';
+  const textoMostrado = text || '(Foto adjunta)';
   chatHistory.push({ rol: 'user', contenido: textoMostrado });
   appendChatMsg('user', textoMostrado);
   if (foto) {
@@ -808,6 +808,20 @@ async function sendChatMsg() {
   }
 }
 
+// Entrada sutil de cada burbuja del chat: fade + leve desplazamiento vertical,
+// orquestado con la Web Animations API nativa (sin dependencias).
+function animarEntradaBurbuja(el) {
+  if (typeof el.animate !== 'function') return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate(
+    [
+      { opacity: 0, transform: 'translateY(10px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ],
+    { duration: 280, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
+  );
+}
+
 function appendReporteCreado(reporteId) {
   const list = document.getElementById('chat-messages-list');
   if (!list) return;
@@ -816,12 +830,13 @@ function appendReporteCreado(reporteId) {
   div.className = 'chat-msg chat-msg-assistant';
   div.innerHTML = `
     <div class="chat-bubble chat-bubble-success">
-      <div class="chat-success-title">✅ Reporte registrado</div>
+      <div class="chat-success-title"><i class="ph-bold ph-check-circle"></i> Reporte registrado</div>
       <div class="chat-success-id">${escapeHtml(reporteId)}</div>
       <div class="chat-success-note">Guarda este número para hacer seguimiento de tu reporte con el Coordinador SMS.</div>
     </div>
   `;
   list.appendChild(div);
+  animarEntradaBurbuja(div);
   list.scrollTop = list.scrollHeight;
 }
 
@@ -842,6 +857,7 @@ function appendChatMsg(rol, texto, isTyping = false) {
   }
 
   list.appendChild(div);
+  animarEntradaBurbuja(div);
   list.scrollTop = list.scrollHeight;
   return id;
 }
