@@ -570,6 +570,51 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 }
 .steps-line { flex: 1; height: 2px; background: var(--color-divider); min-width: 14px; }
 
+/* Contador "Paso X de Y" — reemplaza las etiquetas largas bajo los dots
+   en pantallas chicas, donde 8 pasos con texto no caben sin apretarse.
+   aria-live está en el HTML: al cambiar su texto se anuncia solo. */
+.step-counter {
+  display: none;
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--color-text-muted); text-align: center;
+  margin: 0 0 var(--space-5);
+}
+@media (max-width: 480px) {
+  .step-lbl { display: none; }
+  .step-counter { display: block; }
+}
+
+/* Utilidad del wizard: oculta pasos no activos. display:none no excluye
+   sus campos de FormData al enviar el <form> completo (solo lo hacen
+   disabled/sin name), así que collectForm() sigue funcionando igual. */
+.wc-hidden { display: none !important; }
+
+/* ── NAVEGACIÓN DEL WIZARD ────────────────────────────────── */
+.wiz-nav {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-top: var(--space-5); padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+.btn-wiz-back, .btn-wiz-next {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-sm); font-weight: 700;
+  padding: var(--space-2) var(--space-5); min-height: 44px;
+  border-radius: var(--radius-full); cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-wiz-back {
+  background: transparent; border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.btn-wiz-back:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-wiz-next {
+  margin-left: auto;
+  background: var(--color-primary); border: none; color: #fff;
+  box-shadow: 0 4px 16px rgba(46,107,214,0.3);
+}
+.btn-wiz-next:hover { background: var(--color-primary-hover); }
+
 /* ── FORM CARDS ───────────────────────────────────────────── */
 .form-card {
   background: var(--color-surface); border: 1px solid var(--color-border);
@@ -612,6 +657,18 @@ main { flex: 1; max-width: 900px; margin: 0 auto; width: 100%; }
 .form-grid--mt   { margin-top: var(--space-5); }
 .field-hint { font-size: 0.75rem; color: var(--color-text-muted); display: flex; align-items: center; gap: 4px; }
 
+/* Mensajes de error inline — reemplazan alert()/tooltips nativos dependientes
+   del locale del navegador por texto en español, visible junto al campo. */
+.inline-error {
+  display: none; align-items: flex-start; gap: var(--space-2);
+  background: rgba(229,72,77,0.08);
+  border: 1.5px solid var(--color-error); border-radius: var(--radius-md);
+  color: var(--color-error); font-size: var(--text-xs); font-weight: 600;
+  padding: var(--space-3); margin-top: var(--space-3); line-height: 1.5;
+}
+.inline-error.show { display: flex; }
+.inline-error i { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
 label {
   font-size: var(--text-xs); font-weight: 700;
   color: var(--color-text-muted); letter-spacing: 0.05em; text-transform: uppercase;
@@ -641,10 +698,11 @@ select { appearance: auto; }
 .checkbox-group { display: flex; align-items: center; gap: var(--space-2); }
 .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; }
 .checkbox-group label { text-transform: none; letter-spacing: normal; font-size: var(--text-sm); font-weight: 500; cursor: pointer; }
-.radio-row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.radio-opt { display: flex; align-items: center; gap: var(--space-1); }
-.radio-opt input { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; }
-.radio-opt label { text-transform: none; letter-spacing: normal; font-weight: 500; font-size: var(--text-sm); cursor: pointer; }
+
+/* Grupos de radios como chips grandes y táctiles (Confidencial, Clima,
+   Rampa, Visibilidad, Iluminación) — reutiliza .event-chip, mismo patrón
+   :has() sin JS que ya se usaba para Tipo de Evento. */
+.radio-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* ── EVENT CHIPS ──────────────────────────────────────────── */
 .event-type-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: var(--space-2); }
@@ -652,13 +710,14 @@ select { appearance: auto; }
 .event-chip {
   display: flex; align-items: center; gap: var(--space-2);
   border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3); min-height: 44px; box-sizing: border-box;
   font-size: var(--text-xs); font-weight: 500;
   cursor: pointer; transition: all var(--transition); background: var(--color-surface);
 }
 .event-chip i { font-size: 1rem; color: var(--color-text-faint); flex-shrink: 0; }
 .event-chip:hover { border-color: rgba(46,107,214,0.4); background: var(--color-primary-light); }
-.event-chip input[type="checkbox"] { accent-color: var(--color-primary); flex-shrink: 0; width: 14px; height: 14px; }
+.event-chip input[type="checkbox"],
+.event-chip input[type="radio"] { accent-color: var(--color-primary); flex-shrink: 0; width: 14px; height: 14px; }
 .event-chip:has(input:checked) {
   background: var(--color-primary-light);
   border-color: var(--color-primary);
@@ -913,13 +972,16 @@ footer {
 }
 .photo-remove-btn {
   position: absolute; top: 4px; right: 4px;
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: 50%;
   background: rgba(0,0,0,0.65); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.65rem; cursor: pointer; border: none;
-  opacity: 0; transition: opacity var(--transition);
+  font-size: 0.7rem; cursor: pointer; border: none;
+  /* Siempre visible: en táctil no existe :hover, así que ocultarlo por
+     defecto lo dejaba imposible de encontrar en móvil. */
+  opacity: 0.82; transition: opacity var(--transition), transform var(--transition);
 }
-.photo-preview-item:hover .photo-remove-btn { opacity: 1; }
+.photo-preview-item:hover .photo-remove-btn,
+.photo-remove-btn:focus-visible { opacity: 1; transform: scale(1.08); }
 .photo-name {
   position: absolute; bottom: 0; left: 0; right: 0;
   background: rgba(0,0,0,0.55); color: #fff;

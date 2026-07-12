@@ -218,6 +218,8 @@ function resetForm(type) {
   selectedPhotos[photoType] = [];
   const grid = document.getElementById(`${photoType}-preview-grid`);
   if (grid) grid.innerHTML = '';
+  hideInlineError(`${photoType}-photo-error`);
+  hideInlineError(`${isASR ? 'asr' : 'rso'}-submit-error`);
 
   const success = document.getElementById(successId);
   if (success) success.classList.remove('show');
@@ -229,6 +231,127 @@ function resetForm(type) {
   const today = new Date().toISOString().split('T')[0];
   const fechaEl = document.getElementById(fechaId);
   if (fechaEl) fechaEl.value = today;
+
+  const sectionId = `form-${type}`;
+  if (WIZARDS[sectionId]) wizGoTo(sectionId, 0);
+}
+
+/* ── WIZARD PASO-A-PASO ──────────────────────────────────── */
+// Un solo motor para ASR (4 pasos) y RSO (8 pasos): lee la cantidad real
+// de .form-card de cada <section>, no la hardcodea. Los pasos ocultos
+// usan display:none (.wc-hidden), que NO excluye sus campos de FormData
+// al enviar el <form> completo — collectForm() sigue funcionando igual.
+const WIZARDS = {};
+
+const MENSAJES_VALIDACION = {
+  valueMissing: 'Este campo es obligatorio para continuar.',
+  typeMismatch: 'El formato de este campo no es válido.',
+  default:      'Revisa este campo antes de continuar.',
+};
+
+function initWizard(sectionId) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  const cards = section.querySelectorAll('.form-card');
+  if (!cards.length) return;
+
+  WIZARDS[sectionId] = { total: cards.length, current: 0 };
+
+  cards.forEach((card, i) => {
+    card.classList.toggle('wc-hidden', i !== 0);
+    const backBtn = card.querySelector('.btn-wiz-back');
+    const nextBtn = card.querySelector('.btn-wiz-next');
+    if (backBtn) backBtn.classList.toggle('wc-hidden', i === 0);
+    if (nextBtn) nextBtn.classList.toggle('wc-hidden', i === cards.length - 1);
+  });
+
+  // Limpia el mensaje de validación personalizado en cuanto el usuario corrige el campo.
+  section.querySelectorAll('input,select,textarea').forEach(field => {
+    field.addEventListener('input', () => field.setCustomValidity(''));
+  });
+
+  updateWizardUI(sectionId);
+}
+
+function wizStepCard(sectionId, index) {
+  const section = document.getElementById(sectionId);
+  if (!section) return null;
+  return section.querySelectorAll('.form-card')[index] || null;
+}
+
+function wizValidateStep(sectionId, index) {
+  const card = wizStepCard(sectionId, index);
+  if (!card) return true;
+  const fields = card.querySelectorAll('input,select,textarea');
+  for (const field of fields) {
+    if (field.checkValidity()) continue;
+    const tipo = field.validity.valueMissing ? 'valueMissing'
+               : field.validity.typeMismatch ? 'typeMismatch'
+               : 'default';
+    field.setCustomValidity(MENSAJES_VALIDACION[tipo]);
+    field.reportValidity();
+    return false;
+  }
+  return true;
+}
+
+function wizGoTo(sectionId, index) {
+  const wiz = WIZARDS[sectionId];
+  const section = document.getElementById(sectionId);
+  if (!wiz || !section) return;
+
+  const clamped = Math.max(0, Math.min(index, wiz.total - 1));
+  section.querySelectorAll('.form-card').forEach((card, i) => {
+    card.classList.toggle('wc-hidden', i !== clamped);
+  });
+  wiz.current = clamped;
+  updateWizardUI(sectionId);
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function wizNext(btn) {
+  const section = btn.closest('.page-section');
+  if (!section) return;
+  const wiz = WIZARDS[section.id];
+  if (!wiz) return;
+  if (!wizValidateStep(section.id, wiz.current)) return;
+  wizGoTo(section.id, wiz.current + 1);
+}
+
+function wizPrev(btn) {
+  const section = btn.closest('.page-section');
+  if (!section) return;
+  const wiz = WIZARDS[section.id];
+  if (!wiz) return;
+  wizGoTo(section.id, wiz.current - 1);
+}
+
+function updateWizardUI(sectionId) {
+  const wiz = WIZARDS[sectionId];
+  const section = document.getElementById(sectionId);
+  if (!wiz || !section) return;
+
+  // Los step-dot marcan el paso activo. ASR tiene un dot extra ("Enviar")
+  // sin .form-card propio (es la barra de envío) — se enciende junto con
+  // el último paso real, en vez de quedar siempre apagado.
+  const steps = section.querySelectorAll('.form-step');
+  steps.forEach((step, i) => {
+    const esExtra = i >= wiz.total;
+    const activo = i === wiz.current || (esExtra && wiz.current === wiz.total - 1);
+    step.classList.toggle('s-active', activo);
+    if (activo) step.setAttribute('aria-current', 'step');
+    else step.removeAttribute('aria-current');
+  });
+  const dotActivo = steps[Math.min(wiz.current, steps.length - 1)];
+  if (dotActivo && typeof dotActivo.scrollIntoView === 'function') {
+    dotActivo.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }
+
+  const counter = section.querySelector('.step-counter');
+  if (counter) counter.textContent = `Paso ${wiz.current + 1} de ${wiz.total}`;
+
+  const submitBar = section.querySelector('.submit-bar');
+  if (submitBar) submitBar.classList.toggle('wc-hidden', wiz.current !== wiz.total - 1);
 }
 
 /* ── CARGA INICIAL ───────────────────────────────────────── */
@@ -245,6 +368,9 @@ window.addEventListener('load', () => {
   } catch (e) {
     console.warn('QR code error:', e);
   }
+
+  initWizard('form-handling');
+  initWizard('form-oma');
 
   showHome();
   showChatWidget();
@@ -357,15 +483,46 @@ Enviado desde el Portal SMS · CSFS`;
 }
 
 /* ── FOTOS ───────────────────────────────────────────────── */
+const MAX_PHOTO_SIZE = 20 * 1024 * 1024; // 20MB — mismo límite que el backend (CloudinaryConfig)
+
+function showInlineError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const span = el.querySelector('span');
+  if (span) span.textContent = message;
+  el.classList.add('show');
+}
+
+function hideInlineError(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) el.classList.remove('show');
+}
+
 function onPhotoSelect(files, type) {
   const MAX = 10;
-  const newFiles = Array.from(files).filter(f =>
+  hideInlineError(`${type}-photo-error`);
+
+  const candidatos = Array.from(files).filter(f =>
     f.type.startsWith('image/') || f.type.startsWith('video/')
   );
-  if (!newFiles.length) return;
+  const grandes = candidatos.filter(f => f.size > MAX_PHOTO_SIZE);
+  const validos = candidatos.filter(f => f.size <= MAX_PHOTO_SIZE);
 
-  selectedPhotos[type] = [...selectedPhotos[type], ...newFiles].slice(0, MAX);
-  renderPhotoPreviews(type);
+  if (grandes.length) {
+    const nombres = grandes.map(f => f.name).join(', ');
+    showInlineError(`${type}-photo-error`,
+      `${grandes.length === 1 ? 'Este archivo pesa' : 'Estos archivos pesan'} más de 20MB y no se ${grandes.length === 1 ? 'adjuntó' : 'adjuntaron'}: ${nombres}`);
+  }
+
+  if (!validos.length) return;
+
+  const espacioDisponible = MAX - selectedPhotos[type].length;
+  if (espacioDisponible <= 0) {
+    showInlineError(`${type}-photo-error`, `Ya adjuntaste el máximo de ${MAX} archivos.`);
+  } else {
+    selectedPhotos[type] = [...selectedPhotos[type], ...validos.slice(0, espacioDisponible)];
+    renderPhotoPreviews(type);
+  }
 
   const input = document.getElementById(`${type}-photo-input`);
   if (input) input.value = '';
@@ -442,8 +599,13 @@ async function uploadPhotos(reporteId, type) {
 async function submitASR(e) {
   e.preventDefault();
 
+  // Red de seguridad: valida el último paso visible con mensajes en español.
+  // Los pasos anteriores ya quedaron validados al avanzar con wizNext().
+  if (WIZARDS['form-handling'] && !wizValidateStep('form-handling', WIZARDS['form-handling'].current)) return;
+
   const data = collectForm('asr-form');
   const btn  = document.querySelector('#asr-form .btn-submit');
+  hideInlineError('asr-submit-error');
 
   // Honeypot anti-spam: si el campo oculto viene lleno, es un bot.
   // Simulamos un envío exitoso sin llamar a la API, sin delatar el honeypot.
@@ -493,7 +655,7 @@ async function submitASR(e) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     selectedPhotos.asr = [];
   } catch (err) {
-    alert(`No se pudo enviar el reporte. Por favor intenta de nuevo.\n\nDetalle: ${err.message}`);
+    showInlineError('asr-submit-error', 'No se pudo enviar el reporte. Verifica tu conexión e intenta de nuevo.');
     btn.classList.remove('loading');
     btn.disabled = false;
   }
@@ -503,8 +665,13 @@ async function submitASR(e) {
 async function submitRSO(e) {
   e.preventDefault();
 
+  // Red de seguridad: valida el último paso visible con mensajes en español.
+  // Los pasos anteriores ya quedaron validados al avanzar con wizNext().
+  if (WIZARDS['form-oma'] && !wizValidateStep('form-oma', WIZARDS['form-oma'].current)) return;
+
   const data = collectForm('rso-form');
   const btn  = document.querySelector('#rso-form .btn-submit');
+  hideInlineError('rso-submit-error');
 
   // Honeypot anti-spam: si el campo oculto viene lleno, es un bot.
   // Simulamos un envío exitoso sin llamar a la API, sin delatar el honeypot.
@@ -554,7 +721,7 @@ async function submitRSO(e) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     selectedPhotos.oma = [];
   } catch (err) {
-    alert(`No se pudo enviar el reporte. Por favor intenta de nuevo.\n\nDetalle: ${err.message}`);
+    showInlineError('rso-submit-error', 'No se pudo enviar el reporte. Verifica tu conexión e intenta de nuevo.');
     btn.classList.remove('loading');
     btn.disabled = false;
   }

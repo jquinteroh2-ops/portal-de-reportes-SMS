@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SMS Portal — CSFS Reportes de Seguridad</title>
 
+  <!-- Favicon: mismo isotipo y colores que el logo del header, sin request extra -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%232e6bd6'/%3E%3Cpath d='M8 20 L20 8 L32 20' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M14 20 L14 32 L26 32 L26 20' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='20' cy='20' r='3' fill='%234d86ea'/%3E%3C/svg%3E">
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -225,6 +228,7 @@
           <div class="steps-line"></div>
           <div class="form-step"><div class="step-dot">5</div><div class="step-lbl">Enviar</div></div>
         </div>
+        <p class="step-counter" aria-live="polite"></p>
 
         <form id="asr-form" onsubmit="submitASR(event)">
 
@@ -248,14 +252,14 @@
                     <i class="ph ph-user-circle"></i>
                     Nombre del Reportante<span class="required">*</span>
                   </label>
-                  <input type="text" id="asr-nombre" name="nombre" placeholder="Nombre completo" required>
+                  <input type="text" id="asr-nombre" name="nombre" placeholder="Nombre completo" required aria-required="true">
                 </div>
                 <div class="form-group">
                   <label for="asr-fecha">
                     <i class="ph ph-calendar-blank"></i>
                     Fecha del Reporte<span class="required">*</span>
                   </label>
-                  <input type="date" id="asr-fecha" name="fecha" required>
+                  <input type="date" id="asr-fecha" name="fecha" required aria-required="true">
                 </div>
                 <div class="form-group">
                   <label for="asr-mail">
@@ -271,8 +275,8 @@
                     ¿Reporte Confidencial?
                   </label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="conf-si" name="confidencial" value="Sí"><label for="conf-si">Sí</label></div>
-                    <div class="radio-opt"><input type="radio" id="conf-no" name="confidencial" value="No" checked><label for="conf-no">No</label></div>
+                    <label class="event-chip"><input type="radio" id="conf-si" name="confidencial" value="Sí">Sí</label>
+                    <label class="event-chip"><input type="radio" id="conf-no" name="confidencial" value="No" checked>No</label>
                   </div>
                 </div>
                 <div class="form-group">
@@ -289,6 +293,10 @@
                   </label>
                   <input type="text" id="asr-firma-note" name="cargo" placeholder="Cargo en la empresa">
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -308,7 +316,7 @@
                     Descripción detallada del evento, peligro o condición insegura<span class="required">*</span>
                   </label>
                   <textarea id="asr-descripcion" name="descripcion" rows="6"
-                    placeholder="Describa con el mayor detalle posible el evento, peligro o imagen de riesgo observado. Incluya qué sucedió, dónde, cómo y qué consecuencias potenciales tuvo o podría tener..." required></textarea>
+                    placeholder="Describa con el mayor detalle posible el evento, peligro o imagen de riesgo observado. Incluya qué sucedió, dónde, cómo y qué consecuencias potenciales tuvo o podría tener..." required aria-required="true"></textarea>
                 </div>
                 <div class="form-group full">
                   <label for="asr-sugerencias">
@@ -318,6 +326,10 @@
                   <textarea id="asr-sugerencias" name="sugerencias" rows="3"
                     placeholder="Indique acciones preventivas o correctivas que considera pertinentes..."></textarea>
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -341,7 +353,12 @@
               </div>
               <input type="file" id="asr-photo-input" accept="image/*,video/*" multiple style="display:none"
                      onchange="onPhotoSelect(this.files,'asr')">
+              <div class="inline-error" id="asr-photo-error" role="alert"><i class="ph-bold ph-warning-circle"></i><span></span></div>
               <div class="photo-preview-grid" id="asr-preview-grid"></div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -390,6 +407,10 @@
                   <textarea id="asr-defensa" name="defensas" rows="2" placeholder="Acciones de mitigación propuestas..."></textarea>
                 </div>
               </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next wc-hidden" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -425,6 +446,8 @@
               </button>
             </div>
           </div>
+
+          <div class="inline-error" id="asr-submit-error" role="alert"><i class="ph-bold ph-warning"></i><span></span></div>
 
           <!-- Barra de envío ASR -->
           <div class="submit-bar" id="asr-submitbar">
@@ -485,6 +508,7 @@
           <div class="steps-line"></div>
           <div class="form-step s-oma"><div class="step-dot">8</div><div class="step-lbl">Detalle</div></div>
         </div>
+        <p class="step-counter" aria-live="polite"></p>
 
         <form id="rso-form" onsubmit="submitRSO(event)">
 
@@ -508,14 +532,14 @@
                     <i class="ph ph-user-circle"></i>
                     Nombre<span class="required">*</span>
                   </label>
-                  <input type="text" id="rso-nombre" name="nombre" placeholder="Nombre completo" required>
+                  <input type="text" id="rso-nombre" name="nombre" placeholder="Nombre completo" required aria-required="true">
                 </div>
                 <div class="form-group">
                   <label for="rso-cargo">
                     <i class="ph ph-briefcase"></i>
                     Cargo<span class="required">*</span>
                   </label>
-                  <input type="text" id="rso-cargo" name="cargo" placeholder="Cargo en la empresa" required>
+                  <input type="text" id="rso-cargo" name="cargo" placeholder="Cargo en la empresa" required aria-required="true">
                 </div>
                 <div class="form-group">
                   <label for="rso-contacto">
@@ -531,10 +555,14 @@
                     ¿Reporte Confidencial?
                   </label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="rso-conf-si" name="confidencial" value="Sí"><label for="rso-conf-si">Sí</label></div>
-                    <div class="radio-opt"><input type="radio" id="rso-conf-no" name="confidencial" value="No" checked><label for="rso-conf-no">No</label></div>
+                    <label class="event-chip"><input type="radio" id="rso-conf-si" name="confidencial" value="Sí">Sí</label>
+                    <label class="event-chip"><input type="radio" id="rso-conf-no" name="confidencial" value="No" checked>No</label>
                   </div>
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -553,7 +581,7 @@
                     <i class="ph ph-buildings"></i>
                     Aeropuerto<span class="required">*</span>
                   </label>
-                  <input type="text" id="rso-aeropuerto" name="aeropuerto" placeholder="IATA / Nombre" required>
+                  <input type="text" id="rso-aeropuerto" name="aeropuerto" placeholder="IATA / Nombre" required aria-required="true">
                 </div>
                 <div class="form-group">
                   <label for="rso-fecha">
@@ -612,6 +640,10 @@
                   </div>
                 </div>
               </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -643,7 +675,7 @@
                     <i class="ph ph-note-pencil"></i>
                     Descripción breve del evento<span class="required">*</span>
                   </label>
-                  <textarea id="rso-descripcion" name="descripcion" rows="3" placeholder="Describa brevemente qué ocurrió..." required></textarea>
+                  <textarea id="rso-descripcion" name="descripcion" rows="3" placeholder="Describa brevemente qué ocurrió..." required aria-required="true"></textarea>
                 </div>
                 <div class="form-group full">
                   <label for="rso-causa">
@@ -652,6 +684,10 @@
                   </label>
                   <textarea id="rso-causa" name="causa" rows="2" placeholder="Error humano, falla de equipo, condiciones ambientales..."></textarea>
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -692,6 +728,10 @@
                     <label for="rso-ninguno">Sin víctimas</label>
                   </div>
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -738,6 +778,10 @@
                   <input type="text" id="rso-pers2-cia" name="pers2_cia" placeholder="Empresa">
                 </div>
               </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -753,39 +797,43 @@
                 <div class="form-group">
                   <label><i class="ph ph-cloud-rain"></i> Clima</label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="clima-bueno"    name="clima" value="Bueno"><label for="clima-bueno">Bueno</label></div>
-                    <div class="radio-opt"><input type="radio" id="clima-lluvioso" name="clima" value="Lluvioso"><label for="clima-lluvioso">Lluvioso</label></div>
-                    <div class="radio-opt"><input type="radio" id="clima-calido"   name="clima" value="Cálido"><label for="clima-calido">Cálido</label></div>
-                    <div class="radio-opt"><input type="radio" id="clima-frio"     name="clima" value="Frío"><label for="clima-frio">Frío</label></div>
-                    <div class="radio-opt"><input type="radio" id="clima-viento"   name="clima" value="Viento"><label for="clima-viento">Viento</label></div>
+                    <label class="event-chip"><input type="radio" id="clima-bueno"    name="clima" value="Bueno">Bueno</label>
+                    <label class="event-chip"><input type="radio" id="clima-lluvioso" name="clima" value="Lluvioso">Lluvioso</label>
+                    <label class="event-chip"><input type="radio" id="clima-calido"   name="clima" value="Cálido">Cálido</label>
+                    <label class="event-chip"><input type="radio" id="clima-frio"     name="clima" value="Frío">Frío</label>
+                    <label class="event-chip"><input type="radio" id="clima-viento"   name="clima" value="Viento">Viento</label>
                   </div>
                 </div>
                 <div class="form-group">
                   <label><i class="ph ph-road-horizon"></i> Área de Rampa</label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="rampa-seca"   name="rampa" value="Seca"><label for="rampa-seca">Seca</label></div>
-                    <div class="radio-opt"><input type="radio" id="rampa-humeda" name="rampa" value="Húmeda"><label for="rampa-humeda">Húmeda</label></div>
-                    <div class="radio-opt"><input type="radio" id="rampa-aceite" name="rampa" value="Aceite/Líquidos"><label for="rampa-aceite">Aceite</label></div>
-                    <div class="radio-opt"><input type="radio" id="rampa-obst"   name="rampa" value="Obstáculos"><label for="rampa-obst">Obstáculos</label></div>
+                    <label class="event-chip"><input type="radio" id="rampa-seca"   name="rampa" value="Seca">Seca</label>
+                    <label class="event-chip"><input type="radio" id="rampa-humeda" name="rampa" value="Húmeda">Húmeda</label>
+                    <label class="event-chip"><input type="radio" id="rampa-aceite" name="rampa" value="Aceite/Líquidos">Aceite</label>
+                    <label class="event-chip"><input type="radio" id="rampa-obst"   name="rampa" value="Obstáculos">Obstáculos</label>
                   </div>
                 </div>
                 <div class="form-group">
                   <label><i class="ph ph-eye"></i> Visibilidad</label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="vis-buena"      name="visibilidad" value="Buena"><label for="vis-buena">Buena</label></div>
-                    <div class="radio-opt"><input type="radio" id="vis-adecuada"   name="visibilidad" value="Adecuada"><label for="vis-adecuada">Adecuada</label></div>
-                    <div class="radio-opt"><input type="radio" id="vis-inadecuada" name="visibilidad" value="Inadecuada"><label for="vis-inadecuada">Inadecuada</label></div>
-                    <div class="radio-opt"><input type="radio" id="vis-mala"       name="visibilidad" value="Mala"><label for="vis-mala">Mala</label></div>
+                    <label class="event-chip"><input type="radio" id="vis-buena"      name="visibilidad" value="Buena">Buena</label>
+                    <label class="event-chip"><input type="radio" id="vis-adecuada"   name="visibilidad" value="Adecuada">Adecuada</label>
+                    <label class="event-chip"><input type="radio" id="vis-inadecuada" name="visibilidad" value="Inadecuada">Inadecuada</label>
+                    <label class="event-chip"><input type="radio" id="vis-mala"       name="visibilidad" value="Mala">Mala</label>
                   </div>
                 </div>
                 <div class="form-group">
                   <label><i class="ph ph-sun"></i> Iluminación</label>
                   <div class="radio-row">
-                    <div class="radio-opt"><input type="radio" id="ilu-buena"      name="iluminacion" value="Buena"><label for="ilu-buena">Buena</label></div>
-                    <div class="radio-opt"><input type="radio" id="ilu-adecuada"   name="iluminacion" value="Adecuada"><label for="ilu-adecuada">Adecuada</label></div>
-                    <div class="radio-opt"><input type="radio" id="ilu-inadecuada" name="iluminacion" value="Inadecuada"><label for="ilu-inadecuada">Inadecuada</label></div>
+                    <label class="event-chip"><input type="radio" id="ilu-buena"      name="iluminacion" value="Buena">Buena</label>
+                    <label class="event-chip"><input type="radio" id="ilu-adecuada"   name="iluminacion" value="Adecuada">Adecuada</label>
+                    <label class="event-chip"><input type="radio" id="ilu-inadecuada" name="iluminacion" value="Inadecuada">Inadecuada</label>
                   </div>
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -809,7 +857,12 @@
               </div>
               <input type="file" id="oma-photo-input" accept="image/*,video/*" multiple style="display:none"
                      onchange="onPhotoSelect(this.files,'oma')">
+              <div class="inline-error" id="oma-photo-error" role="alert"><i class="ph-bold ph-warning-circle"></i><span></span></div>
               <div class="photo-preview-grid" id="oma-preview-grid"></div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -828,7 +881,7 @@
                     Descripción detallada del evento observado<span class="required">*</span>
                   </label>
                   <textarea id="rso-detalle" name="detalle" rows="7"
-                    placeholder="Por favor haga una descripción detallada del evento observado y de ser posible incluya sugerencias de cómo prevenir un evento similar..." required></textarea>
+                    placeholder="Por favor haga una descripción detallada del evento observado y de ser posible incluya sugerencias de cómo prevenir un evento similar..." required aria-required="true"></textarea>
                 </div>
                 <div class="form-group full">
                   <label for="rso-terceros">
@@ -837,6 +890,10 @@
                   </label>
                   <input type="text" id="rso-terceros" name="terceros" placeholder="Entidades o personas notificadas sobre el evento">
                 </div>
+              </div>
+              <div class="wiz-nav">
+                <button type="button" class="btn-wiz-back" onclick="wizPrev(this)"><i class="ph-bold ph-arrow-left"></i> Atrás</button>
+                <button type="button" class="btn-wiz-next wc-hidden" onclick="wizNext(this)">Siguiente <i class="ph-bold ph-arrow-right"></i></button>
               </div>
             </div>
           </div>
@@ -873,6 +930,8 @@
               </button>
             </div>
           </div>
+
+          <div class="inline-error" id="rso-submit-error" role="alert"><i class="ph-bold ph-warning"></i><span></span></div>
 
           <!-- Barra de envío RSO -->
           <div class="submit-bar" id="rso-submitbar">
