@@ -22,10 +22,25 @@ let audioChunks = [];
 let isRecording = false;
 
 /* ── TEMA (dark / light) ─────────────────────────────────── */
+// Oscuro por defecto, como Atalaya: solo la preferencia guardada del
+// usuario (localStorage) abre el portal en claro. No se usa
+// prefers-color-scheme para el estado inicial porque los navegadores
+// reportan "light" incluso cuando el usuario nunca configuró nada,
+// lo que anularía el oscuro por defecto.
+// El <head> ya aplicó esta misma lógica inline (sin parpadeo);
+// aquí solo se sincroniza el ícono y se maneja el toggle.
+const THEME_KEY = 'portal-sms-theme';
+
 (function initTheme() {
   const toggle = document.querySelector('[data-theme-toggle]');
   const root   = document.documentElement;
-  let theme = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+
+  let theme = root.getAttribute('data-theme');
+  if (theme !== 'light' && theme !== 'dark') {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+    theme = saved === 'light' ? 'light' : 'dark';
+  }
   root.setAttribute('data-theme', theme);
 
   function syncIcon() {
@@ -40,6 +55,7 @@ let isRecording = false;
     toggle.addEventListener('click', () => {
       theme = theme === 'dark' ? 'light' : 'dark';
       root.setAttribute('data-theme', theme);
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
       syncIcon();
     });
   }
@@ -222,7 +238,7 @@ window.addEventListener('load', () => {
       text: window.location.href,
       width: 180,
       height: 180,
-      colorDark: '#1e40af',
+      colorDark: '#2e6bd6', // azul de marca Atalaya (--accent)
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.H,
     });
