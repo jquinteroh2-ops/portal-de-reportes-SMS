@@ -144,6 +144,31 @@ async function buscarReporte() {
     EN_MITIGACION: 'track-estado-mitigacion',
     CERRADO:       'track-estado-cerrado',
   };
+  // Agrupa los 5 estados reales del backend en 3 etapas — un reportante
+  // externo no necesita distinguir EVALUADO de EN_MITIGACION, solo saber
+  // si ya se recibió, se está revisando, o ya se cerró.
+  const ESTADO_ETAPA = {
+    NUEVO: 0, EN_ANALISIS: 1, EVALUADO: 1, EN_MITIGACION: 1, CERRADO: 2,
+  };
+  const ETAPAS_SEGUIMIENTO = [
+    { label: 'Recibido',    icon: 'ph-tray-arrow-down' },
+    { label: 'En revisión', icon: 'ph-magnifying-glass' },
+    { label: 'Cerrado',     icon: 'ph-flag-checkered' },
+  ];
+
+  function renderTrackTimeline(estado) {
+    const actual = ESTADO_ETAPA[estado] ?? 0;
+    return `<div class="track-timeline">${ETAPAS_SEGUIMIENTO.map((etapa, i) => {
+      const clase = i < actual ? 'done' : i === actual ? 'current' : '';
+      const icono = i < actual ? 'ph-check' : etapa.icon;
+      const linea = i < ETAPAS_SEGUIMIENTO.length - 1
+        ? `<div class="track-timeline-line ${i < actual ? 'done' : ''}"></div>` : '';
+      return `<div class="track-timeline-step ${clase}">
+          <div class="track-timeline-dot"><i class="ph-bold ${icono}"></i></div>
+          <span class="track-timeline-lbl">${etapa.label}</span>
+        </div>${linea}`;
+    }).join('')}</div>`;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/reportes/${encodeURIComponent(id)}/seguimiento`);
@@ -167,6 +192,7 @@ async function buscarReporte() {
           <div class="track-result-tipo">${escapeHtml(d.tipo)}</div>
           <div class="track-estado-badge ${ESTADO_CLASS[d.estado] ?? ''}">${escapeHtml(ESTADO_LABEL[d.estado] ?? d.estado)}</div>
         </div>
+        ${renderTrackTimeline(d.estado)}
         <div class="track-result-grid">
           <div class="track-field">
             <span class="track-field-label">Número de reporte</span>
@@ -201,6 +227,7 @@ async function buscarReporte() {
 
 function showForm(type) {
   resetForm(type);
+  checkDraft(type);
   showSection(`form-${type}`);
 }
 
@@ -316,6 +343,7 @@ function wizNext(btn) {
   if (!wiz) return;
   if (!wizValidateStep(section.id, wiz.current)) return;
   wizGoTo(section.id, wiz.current + 1);
+  saveDraft(section.id === 'form-handling' ? 'handling' : 'oma');
 }
 
 function wizPrev(btn) {
@@ -324,6 +352,7 @@ function wizPrev(btn) {
   const wiz = WIZARDS[section.id];
   if (!wiz) return;
   wizGoTo(section.id, wiz.current - 1);
+  saveDraft(section.id === 'form-handling' ? 'handling' : 'oma');
 }
 
 function updateWizardUI(sectionId) {
@@ -354,6 +383,113 @@ function updateWizardUI(sectionId) {
   if (submitBar) submitBar.classList.toggle('wc-hidden', wiz.current !== wiz.total - 1);
 }
 
+/* ── AUTOGUARDADO (borrador en localStorage) ─────────────── */
+// Solo se guarda texto/selecciones — los archivos adjuntos no son
+// serializables a localStorage, así que nunca se recuperan (se avisa
+// en el banner). No se auto-restaura ni se auto-descarta: el usuario
+// decide en un banner no intrusivo.
+const DRAFT_DEBOUNCE_MS = 600;
+const draftTimers = {};
+
+function draftKey(type) { return `portal-sms-draft-${type}`; }
+function draftFormId(type) { return type === 'handling' ? 'asr-form' : 'rso-form'; }
+function draftBannerId(type) { return type === 'handling' ? 'asr-draft-banner' : 'oma-draft-banner'; }
+
+// Agrupa por name para poder reconstruir radios/checkboxes múltiples
+// (los event-chip) al restaurar, no solo campos de texto sueltos.
+function agruparPorNombre(form) {
+  const grupos = {};
+  Array.from(form.elements).forEach(el => {
+    if (!el.name || el.name === 'website') return; // el honeypot nunca se guarda
+    (grupos[el.name] = grupos[el.name] || []).push(el);
+  });
+  return grupos;
+}
+
+function serializarFormulario(form) {
+  const valores = {};
+  Object.entries(agruparPorNombre(form)).forEach(([name, els]) => {
+    const tipo = els[0].type;
+    if (tipo === 'checkbox' && els.length > 1) {
+      valores[name] = els.filter(e => e.checked).map(e => e.value);
+    } else if (tipo === 'checkbox') {
+      valores[name] = els[0].checked;
+    } else if (tipo === 'radio') {
+      const marcado = els.find(e => e.checked);
+      valores[name] = marcado ? marcado.value : '';
+    } else {
+      valores[name] = els[0].value;
+    }
+  });
+  return valores;
+}
+
+function restaurarFormulario(form, valores) {
+  const grupos = agruparPorNombre(form);
+  Object.entries(valores).forEach(([name, val]) => {
+    const els = grupos[name];
+    if (!els) return;
+    const tipo = els[0].type;
+    if (tipo === 'checkbox' && els.length > 1 && Array.isArray(val)) {
+      els.forEach(e => { e.checked = val.includes(e.value); });
+    } else if (tipo === 'checkbox') {
+      els[0].checked = !!val;
+    } else if (tipo === 'radio') {
+      els.forEach(e => { e.checked = e.value === val; });
+    } else {
+      els[0].value = val;
+    }
+  });
+}
+
+function saveDraft(type) {
+  const form = document.getElementById(draftFormId(type));
+  if (!form) return;
+  const wiz = WIZARDS[`form-${type}`];
+  const draft = { paso: wiz ? wiz.current : 0, valores: serializarFormulario(form), ts: Date.now() };
+  try { localStorage.setItem(draftKey(type), JSON.stringify(draft)); } catch (e) { /* localStorage lleno o bloqueado: se pierde el autoguardado, no la funcionalidad */ }
+}
+
+function scheduleSaveDraft(type) {
+  clearTimeout(draftTimers[type]);
+  draftTimers[type] = setTimeout(() => saveDraft(type), DRAFT_DEBOUNCE_MS);
+}
+
+function loadDraft(type) {
+  try {
+    const raw = localStorage.getItem(draftKey(type));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function clearDraft(type) {
+  clearTimeout(draftTimers[type]);
+  try { localStorage.removeItem(draftKey(type)); } catch (e) {}
+  const banner = document.getElementById(draftBannerId(type));
+  if (banner) banner.classList.remove('show');
+}
+
+function checkDraft(type) {
+  const banner = document.getElementById(draftBannerId(type));
+  if (!banner) return;
+  banner.classList.toggle('show', !!loadDraft(type));
+}
+
+function restoreDraft(type) {
+  const draft = loadDraft(type);
+  if (!draft) return;
+  const form = document.getElementById(draftFormId(type));
+  if (form) restaurarFormulario(form, draft.valores);
+  const sectionId = `form-${type}`;
+  if (WIZARDS[sectionId]) wizGoTo(sectionId, draft.paso || 0);
+  const banner = document.getElementById(draftBannerId(type));
+  if (banner) banner.classList.remove('show');
+}
+
+function discardDraft(type) {
+  clearDraft(type);
+}
+
 /* ── CARGA INICIAL ───────────────────────────────────────── */
 window.addEventListener('load', () => {
   try {
@@ -371,6 +507,13 @@ window.addEventListener('load', () => {
 
   initWizard('form-handling');
   initWizard('form-oma');
+
+  ['handling', 'oma'].forEach(type => {
+    const form = document.getElementById(draftFormId(type));
+    if (!form) return;
+    form.addEventListener('input', () => scheduleSaveDraft(type));
+    form.addEventListener('change', () => scheduleSaveDraft(type));
+  });
 
   showHome();
   showChatWidget();
@@ -617,6 +760,7 @@ async function submitASR(e) {
       document.getElementById('asr-success').classList.add('show');
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       selectedPhotos.asr = [];
+      clearDraft('handling');
     }, 600);
     return;
   }
@@ -654,6 +798,7 @@ async function submitASR(e) {
     document.getElementById('asr-success').classList.add('show');
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     selectedPhotos.asr = [];
+    clearDraft('handling');
   } catch (err) {
     showInlineError('asr-submit-error', 'No se pudo enviar el reporte. Verifica tu conexión e intenta de nuevo.');
     btn.classList.remove('loading');
@@ -683,6 +828,7 @@ async function submitRSO(e) {
       document.getElementById('rso-success').classList.add('show');
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       selectedPhotos.oma = [];
+      clearDraft('oma');
     }, 600);
     return;
   }
@@ -720,6 +866,7 @@ async function submitRSO(e) {
     document.getElementById('rso-success').classList.add('show');
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     selectedPhotos.oma = [];
+    clearDraft('oma');
   } catch (err) {
     showInlineError('rso-submit-error', 'No se pudo enviar el reporte. Verifica tu conexión e intenta de nuevo.');
     btn.classList.remove('loading');

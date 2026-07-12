@@ -230,6 +230,20 @@
         </div>
         <p class="step-counter" aria-live="polite"></p>
 
+        <div class="draft-banner" id="asr-draft-banner" role="status">
+          <div class="draft-banner-text">
+            <i class="ph-bold ph-clock-counter-clockwise"></i>
+            <div>
+              <strong>Tienes un borrador guardado de este reporte.</strong>
+              <span>Las fotos o videos no se recuperan — deberás adjuntarlos de nuevo.</span>
+            </div>
+          </div>
+          <div class="draft-banner-actions">
+            <button type="button" class="btn-draft-restore" onclick="restoreDraft('handling')">Restaurar</button>
+            <button type="button" class="btn-draft-discard" onclick="discardDraft('handling')">Descartar</button>
+          </div>
+        </div>
+
         <form id="asr-form" onsubmit="submitASR(event)">
 
           <!-- Honeypot anti-spam: campo oculto que un humano nunca completa -->
@@ -509,6 +523,20 @@
           <div class="form-step s-oma"><div class="step-dot">8</div><div class="step-lbl">Detalle</div></div>
         </div>
         <p class="step-counter" aria-live="polite"></p>
+
+        <div class="draft-banner" id="oma-draft-banner" role="status">
+          <div class="draft-banner-text">
+            <i class="ph-bold ph-clock-counter-clockwise"></i>
+            <div>
+              <strong>Tienes un borrador guardado de este reporte.</strong>
+              <span>Las fotos o videos no se recuperan — deberás adjuntarlos de nuevo.</span>
+            </div>
+          </div>
+          <div class="draft-banner-actions">
+            <button type="button" class="btn-draft-restore" onclick="restoreDraft('oma')">Restaurar</button>
+            <button type="button" class="btn-draft-discard" onclick="discardDraft('oma')">Descartar</button>
+          </div>
+        </div>
 
         <form id="rso-form" onsubmit="submitRSO(event)">
 
