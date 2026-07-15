@@ -1086,6 +1086,21 @@ async function sendChatMsg() {
   const foto = chatFotoPendiente;
   if (!text && !foto) return;
 
+  // El portal es anónimo (sin login): una vez el archivo queda adjunto al
+  // reporte ya no hay forma de quitarlo desde aquí (no hay pantalla de "mis
+  // reportes"). Se confirma explícitamente ANTES de enviarlo — es el único
+  // punto donde el usuario todavía puede corregirse (botón "Quitar" en la
+  // vista previa) en vez de tener que pedir que borren el reporte completo.
+  if (foto) {
+    const tipo = foto.esVideo ? 'video' : 'foto';
+    const confirmado = confirm(
+      `Vas a enviar el ${tipo} "${foto.file.name}" adjunto a tu reporte.\n\n` +
+      `Una vez enviado no podrás quitarlo desde aquí. Si no es el archivo correcto, cancela y usa el botón "Quitar" en la vista previa antes de continuar.\n\n` +
+      `¿Confirmas el envío?`
+    );
+    if (!confirmado) return;
+  }
+
   input.value = '';
   input.disabled = true;
   if (sendBtn) sendBtn.disabled = true;
